@@ -1,2 +1,777 @@
-Adding Project Generator JavaScript functions to enable complete web app generation from simple ideas.
-```
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Coding Assistant - Build Apps with Ideas</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+
+        @media (min-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: white;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 140px;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .repos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .repo-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .repo-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .repo-card.selected {
+            border-color: #667eea;
+            background: #e7f3ff;
+        }
+
+        .repo-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .repo-desc {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .repo-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .chat-container {
+            grid-column: 1 / -1;
+            max-height: 500px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 20px;
+            padding: 0;
+        }
+
+        .chat-messages {
+            padding: 20px;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 15px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.ai {
+            background: #f1f3f4;
+            color: #333;
+            border-bottom-left-radius: 5px;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid #e9ecef;
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            margin: 0;
+        }
+
+        .status {
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .project-files {
+            margin-top: 20px;
+        }
+
+        .file-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .steps-container {
+            margin-top: 20px;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .step.completed .step-number {
+            background: #28a745;
+        }
+
+        .step.active .step-number {
+            background: #ffc107;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-robot"></i> AI Coding Assistant</h1>
+            <p>Turn your ideas into working web applications with AI</p>
+        </div>
+
+        <div class="main-content">
+            <!-- GitHub Repository Section -->
+            <div class="card">
+                <h2><i class="fab fa-github"></i> GitHub Integration</h2>
+                
+                <button id="loadRepos" class="btn">
+                    <i class="fas fa-download"></i>
+                    Load My Repositories
+                </button>
+                
+                <div id="repoStatus"></div>
+                
+                <div id="reposContainer" class="hidden">
+                    <div class="input-group">
+                        <label>Select Repository:</label>
+                        <div id="reposList" class="repos-grid"></div>
+                    </div>
+                    
+                    <button id="selectRepo" class="btn btn-success hidden">
+                        <i class="fas fa-check"></i>
+                        Work on Selected Repo
+                    </button>
+                </div>
+
+                <div id="createNewProject" class="hidden">
+                    <div class="input-group">
+                        <label for="newRepoName">New Repository Name:</label>
+                        <input type="text" id="newRepoName" placeholder="my-awesome-app">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="newRepoDesc">Description:</label>
+                        <input type="text" id="newRepoDesc" placeholder="AI-generated web application">
+                    </div>
+                    
+                    <button id="createRepo" class="btn btn-success">
+                        <i class="fas fa-plus"></i>
+                        Create Repository
+                    </button>
+                </div>
+            </div>
+
+            <!-- Project Generator Section -->
+            <div class="card">
+                <h2><i class="fas fa-magic"></i> AI Project Generator</h2>
+                
+                <div class="input-group">
+                    <label for="projectIdea">Describe Your App Idea:</label>
+                    <textarea id="projectIdea" placeholder="Example: Create a resume sorting web app that allows users to upload resumes, automatically categorizes them by skills, and provides a dashboard to view and filter candidates"></textarea>
+                </div>
+                
+                <div class="input-group">
+                    <label for="projectName">Project Name:</label>
+                    <input type="text" id="projectName" placeholder="resume-sorter">
+                </div>
+                
+                <div class="input-group">
+                    <label for="techStack">Technology Stack:</label>
+                    <select id="techStack">
+                        <option value="html-css-js">HTML + CSS + JavaScript</option>
+                        <option value="react">React</option>
+                        <option value="vue">Vue.js</option>
+                        <option value="node-express">Node.js + Express</option>
+                        <option value="python-flask">Python + Flask</option>
+                    </select>
+                </div>
+                
+                <button id="generateProject" class="btn">
+                    <i class="fas fa-cogs"></i>
+                    Generate Complete Project
+                </button>
+                
+                <div id="projectStatus"></div>
+                
+                <!-- Project Steps -->
+                <div id="projectSteps" class="steps-container hidden">
+                    <div class="step" id="step1">
+                        <div class="step-number">1</div>
+                        <span>Creating project plan...</span>
+                    </div>
+                    <div class="step" id="step2">
+                        <div class="step-number">2</div>
+                        <span>Generating project files...</span>
+                    </div>
+                    <div class="step" id="step3">
+                        <div class="step-number">3</div>
+                        <span>Testing the application...</span>
+                    </div>
+                    <div class="step" id="step4">
+                        <div class="step-number">4</div>
+                        <span>Uploading to GitHub...</span>
+                    </div>
+                </div>
+                
+                <!-- Generated Files Display -->
+                <div id="generatedFiles" class="project-files hidden">
+                    <h3>Generated Files:</h3>
+                    <div id="filesList"></div>
+                    <button id="uploadToGitHub" class="btn btn-success">
+                        <i class="fas fa-upload"></i>
+                        Upload to GitHub
+                    </button>
+                </div>
+            </div>
+
+            <!-- AI Chat Interface -->
+            <div class="card chat-container">
+                <h2><i class="fas fa-comments"></i> Chat with AI Agent</h2>
+                
+                <div id="chatMessages" class="chat-messages">
+                    <div class="message ai">
+                        <strong>AI Assistant:</strong> Hi! I'm your AI coding assistant. I can help you modify code, fix bugs, add features, or answer programming questions. Just tell me what you'd like to do!
+                    </div>
+                </div>
+                
+                <div class="chat-input-container">
+                    <input type="text" id="chatInput" class="chat-input" placeholder="Ask me to modify your code, fix bugs, or add features...">
+                    <button id="sendChat" class="btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedRepo = null;
+        let currentProject = null;
+        let generatedFiles = {};
+
+        // DOM elements
+        const loadReposBtn = document.getElementById('loadRepos');
+        const repoStatus = document.getElementById('repoStatus');
+        const reposContainer = document.getElementById('reposContainer');
+        const reposList = document.getElementById('reposList');
+        const selectRepoBtn = document.getElementById('selectRepo');
+        const generateProjectBtn = document.getElementById('generateProject');
+        const projectStatus = document.getElementById('projectStatus');
+        const chatInput = document.getElementById('chatInput');
+        const sendChatBtn = document.getElementById('sendChat');
+        const chatMessages = document.getElementById('chatMessages');
+        const projectSteps = document.getElementById('projectSteps');
+        const generatedFilesDiv = document.getElementById('generatedFiles');
+        const filesList = document.getElementById('filesList');
+        const uploadToGitHubBtn = document.getElementById('uploadToGitHub');
+
+        // Load repositories
+        loadReposBtn.addEventListener('click', async () => {
+            loadReposBtn.disabled = true;
+            loadReposBtn.innerHTML = '<div class="loading"></div> Loading...';
+            
+            try {
+                const response = await fetch('/api/github/repos');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayRepositories(data.repos);
+                    showStatus('success', `Loaded ${data.repos.length} repositories successfully!`, repoStatus);
+                    reposContainer.classList.remove('hidden');
+                } else {
+                    showStatus('error', data.error, repoStatus);
+                }
+            } catch (error) {
+                showStatus('error', 'Failed to load repositories: ' + error.message, repoStatus);
+            }
+            
+            loadReposBtn.disabled = false;
+            loadReposBtn.innerHTML = '<i class="fas fa-download"></i> Load My Repositories';
+        });
+
+        // Display repositories
+        function displayRepositories(repos) {
+            reposList.innerHTML = '';
+            repos.forEach(repo => {
+                const repoCard = document.createElement('div');
+                repoCard.className = 'repo-card';
+                repoCard.innerHTML = `
+                    <div class="repo-name">${repo.name}</div>
+                    <div class="repo-desc">${repo.description || 'No description'}</div>
+                    <div class="repo-meta">
+                        <span>${repo.language || 'Unknown'}</span>
+                        <span>${repo.private ? 'Private' : 'Public'}</span>
+                    </div>
+                `;
+                
+                repoCard.addEventListener('click', () => {
+                    document.querySelectorAll('.repo-card').forEach(card => card.classList.remove('selected'));
+                    repoCard.classList.add('selected');
+                    selectedRepo = repo;
+                    selectRepoBtn.classList.remove('hidden');
+                });
+                
+                reposList.appendChild(repoCard);
+            });
+        }
+
+        // Select repository
+        selectRepoBtn.addEventListener('click', () => {
+            showStatus('success', `Selected repository: ${selectedRepo.name}`, repoStatus);
+            addChatMessage('ai', `Great! I'm now connected to your repository "${selectedRepo.name}". You can ask me to modify files, add features, fix bugs, or create new functionality.`);
+        });
+
+        // Generate project
+        generateProjectBtn.addEventListener('click', async () => {
+            const idea = document.getElementById('projectIdea').value;
+            const name = document.getElementById('projectName').value;
+            const techStack = document.getElementById('techStack').value;
+            
+            if (!idea || !name) {
+                showStatus('error', 'Please provide both project idea and name', projectStatus);
+                return;
+            }
+            
+            generateProjectBtn.disabled = true;
+            generateProjectBtn.innerHTML = '<div class="loading"></div> Generating...';
+            projectSteps.classList.remove('hidden');
+            
+            try {
+                // Step 1: Generate plan
+                updateStep('step1', 'active');
+                showStatus('info', 'Creating project plan...', projectStatus);
+                
+                const planResponse = await fetch('/api/generate-project-plan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idea, projectName: name, techStack })
+                });
+                const planData = await planResponse.json();
+                
+                if (!planData.success) throw new Error(planData.error);
+                
+                updateStep('step1', 'completed');
+                updateStep('step2', 'active');
+                
+                // Step 2: Generate files
+                showStatus('info', 'Generating project files...', projectStatus);
+                
+                const filesResponse = await fetch('/api/generate-project-files', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan: planData.plan, projectName: name, techStack })
+                });
+                const filesData = await filesResponse.json();
+                
+                if (!filesData.success) throw new Error(filesData.error);
+                
+                generatedFiles = filesData.files;
+                updateStep('step2', 'completed');
+                updateStep('step3', 'active');
+                
+                // Step 3: Test project
+                showStatus('info', 'Testing the application...', projectStatus);
+                
+                const testResponse = await fetch('/api/test-project', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: generatedFiles, techStack })
+                });
+                const testData = await testResponse.json();
+                
+                if (testData.success && testData.issues.length > 0) {
+                    // Fix issues if found
+                    const fixResponse = await fetch('/api/fix-project-issues', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ files: generatedFiles, issues: testData.issues, techStack })
+                    });
+                    const fixData = await fixResponse.json();
+                    if (fixData.success) {
+                        generatedFiles = fixData.files;
+                    }
+                }
+                
+                updateStep('step3', 'completed');
+                
+                // Display generated files
+                displayGeneratedFiles();
+                showStatus('success', 'Project generated successfully!', projectStatus);
+                
+                addChatMessage('ai', `🎉 Your "${name}" project has been generated successfully! I've created ${Object.keys(generatedFiles).length} files. You can now upload them to GitHub or ask me to modify anything.`);
+                
+            } catch (error) {
+                showStatus('error', 'Failed to generate project: ' + error.message, projectStatus);
+            }
+            
+            generateProjectBtn.disabled = false;
+            generateProjectBtn.innerHTML = '<i class="fas fa-cogs"></i> Generate Complete Project';
+        });
+
+        // Display generated files
+        function displayGeneratedFiles() {
+            filesList.innerHTML = '';
+            Object.keys(generatedFiles).forEach(fileName => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span class="file-name">${fileName}</span>
+                    <button class="btn btn-secondary" onclick="viewFile('${fileName}')">
+                        <i class="fas fa-eye"></i> View
+                    </button>
+                `;
+                filesList.appendChild(fileItem);
+            });
+            generatedFilesDiv.classList.remove('hidden');
+        }
+
+        // View file content
+        function viewFile(fileName) {
+            const content = generatedFiles[fileName];
+            addChatMessage('ai', `📄 **${fileName}**\n\`\`\`\n${content}\n\`\`\``);
+        }
+
+        // Upload to GitHub
+        uploadToGitHubBtn.addEventListener('click', async () => {
+            if (!selectedRepo) {
+                // Create new repository
+                const repoName = document.getElementById('projectName').value;
+                const repoDesc = document.getElementById('newRepoDesc').value || 'AI-generated web application';
+                
+                try {
+                    const createResponse = await fetch('/api/github/create-repo', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: repoName, description: repoDesc })
+                    });
+                    const createData = await createResponse.json();
+                    
+                    if (!createData.success) throw new Error(createData.error);
+                    
+                    selectedRepo = createData;
+                    addChatMessage('ai', `✅ Created new repository: ${repoName}`);
+                } catch (error) {
+                    showStatus('error', 'Failed to create repository: ' + error.message, projectStatus);
+                    return;
+                }
+            }
+            
+            updateStep('step4', 'active');
+            uploadToGitHubBtn.disabled = true;
+            uploadToGitHubBtn.innerHTML = '<div class="loading"></div> Uploading...';
+            
+            try {
+                for (const [fileName, content] of Object.entries(generatedFiles)) {
+                    const response = await fetch('/api/github/update-file', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            owner: selectedRepo.owner?.login || selectedRepo.full_name.split('/')[0],
+                            repo: selectedRepo.name,
+                            path: fileName,
+                            content: content,
+                            message: `Add ${fileName} - AI generated`
+                        })
+                    });
+                    const data = await response.json();
+                    if (!data.success) throw new Error(data.error);
+                }
+                
+                updateStep('step4', 'completed');
+                showStatus('success', 'All files uploaded successfully to GitHub!', projectStatus);
+                addChatMessage('ai', `🚀 Perfect! Your project has been uploaded to GitHub. You can now ask me to modify any files, add new features, or fix any issues you encounter.`);
+                
+            } catch (error) {
+                showStatus('error', 'Failed to upload files: ' + error.message, projectStatus);
+            }
+            
+            uploadToGitHubBtn.disabled = false;
+            uploadToGitHubBtn.innerHTML = '<i class="fas fa-upload"></i> Upload to GitHub';
+        });
+
+        // Chat functionality
+        sendChatBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            addChatMessage('user', message);
+            chatInput.value = '';
+            
+            sendChatBtn.disabled = true;
+            sendChatBtn.innerHTML = '<div class="loading"></div>';
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addChatMessage('ai', data.response);
+                } else {
+                    addChatMessage('ai', 'Sorry, I encountered an error: ' + data.error);
+                }
+            } catch (error) {
+                addChatMessage('ai', 'Sorry, I encountered an error: ' + error.message);
+            }
+            
+            sendChatBtn.disabled = false;
+            sendChatBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+        }
+
+        function addChatMessage(sender, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            messageDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'AI Assistant'}:</strong> ${message.replace(/\n/g, '<br>')}`;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showStatus(type, message, container) {
+            container.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function updateStep(stepId, status) {
+            const step = document.getElementById(stepId);
+            step.className = `step ${status}`;
+        }
+
+        // Initialize
+        addChatMessage('ai', 'Welcome! I can help you build complete web applications from just your ideas. Try describing an app you want to build, or load your GitHub repositories to start working on existing projects.');
+    </script>
+</body>
+</html>
