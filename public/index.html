@@ -592,7 +592,20 @@
                 
                 if (!filesData.success) throw new Error(filesData.error);
                 
-                generatedFiles = filesData.files;
+                // Handle both JSON object and string responses
+                if (typeof filesData.files === 'string') {
+                    try {
+                        generatedFiles = JSON.parse(filesData.files);
+                    } catch (e) {
+                        // If not valid JSON, create a basic file structure
+                        generatedFiles = {
+                            'index.html': filesData.files,
+                            'README.md': `# ${name}\n\nAI-generated project\n\n## How to run\nOpen index.html in your browser`
+                        };
+                    }
+                } else {
+                    generatedFiles = filesData.files;
+                }
                 updateStep('step2', 'completed');
                 updateStep('step3', 'active');
                 
@@ -733,17 +746,32 @@
             sendChatBtn.innerHTML = '<div class="loading"></div>';
             
             try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message })
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    addChatMessage('ai', data.response);
+                // Check if this is a code generation request
+                if (selectedRepo && (message.toLowerCase().includes('add') || message.toLowerCase().includes('create') || message.toLowerCase().includes('python') || message.toLowerCase().includes('javascript') || message.toLowerCase().includes('html') || message.toLowerCase().includes('css'))) {
+                    await handleCodeGeneration(message);
                 } else {
-                    addChatMessage('ai', 'Sorry, I encountered an error: ' + data.error);
+                    // Regular chat
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            message, 
+                            selectedRepo,
+                            repoFiles: currentProject ? Object.keys(currentProject) : []
+                        })
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        addChatMessage('ai', data.response);
+                        
+                        // If AI suggests code action, offer to execute it
+                        if (data.hasCodeAction && selectedRepo) {
+                            addActionButton('Generate and commit code', () => handleCodeGeneration(message));
+                        }
+                    } else {
+                        addChatMessage('ai', 'Sorry, I encountered an error: ' + data.error);
+                    }
                 }
             } catch (error) {
                 addChatMessage('ai', 'Sorry, I encountered an error: ' + error.message);
@@ -751,6 +779,75 @@
             
             sendChatBtn.disabled = false;
             sendChatBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+        }
+
+        async function handleCodeGeneration(instruction) {
+            if (!selectedRepo) {
+                addChatMessage('ai', 'Please select a repository first before I can add code to it.');
+                return;
+            }
+            
+            // Determine file extension and language
+            let language = 'python';
+            let extension = '.py';
+            
+            if (instruction.toLowerCase().includes('javascript') || instruction.toLowerCase().includes('js')) {
+                language = 'javascript';
+                extension = '.js';
+            } else if (instruction.toLowerCase().includes('html')) {
+                language = 'html';
+                extension = '.html';
+            } else if (instruction.toLowerCase().includes('css')) {
+                language = 'css';
+                extension = '.css';
+            } else if (instruction.toLowerCase().includes('java')) {
+                language = 'java';
+                extension = '.java';
+            }
+            
+            // Generate filename
+            const baseFileName = instruction.toLowerCase().includes('main') ? 'main' : 
+                                instruction.toLowerCase().includes('test') ? 'test' :
+                                instruction.toLowerCase().includes('util') ? 'utils' : 'script';
+            const fileName = baseFileName + extension;
+            
+            try {
+                addChatMessage('ai', `🔄 Generating ${language} code and adding it to your repository...`);
+                
+                const response = await fetch('/api/repo/generate-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        owner: selectedRepo.owner?.login || selectedRepo.full_name.split('/')[0],
+                        repo: selectedRepo.name,
+                        instruction: instruction,
+                        language: language,
+                        fileName: fileName
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addChatMessage('ai', `✅ Successfully created ${fileName} in your repository!\n\n**Generated Code:**\n\`\`\`${language}\n${data.code}\n\`\`\`\n\n[View commit](${data.commitUrl})`);
+                } else {
+                    addChatMessage('ai', `❌ Failed to generate code: ${data.error}`);
+                }
+            } catch (error) {
+                addChatMessage('ai', `❌ Error generating code: ${error.message}`);
+            }
+        }
+
+        function addActionButton(text, action) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ai';
+            messageDiv.innerHTML = `
+                <button class="btn btn-success" onclick="(${action.toString()})()">
+                    <i class="fas fa-code"></i> ${text}
+                </button>
+            `;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
         function addChatMessage(sender, message) {
@@ -771,7 +868,7 @@
         }
 
         // Initialize
-        addChatMessage('ai', 'Welcome! I can help you build complete web applications from just your ideas. Try describing an app you want to build, or load your GitHub repositories to start working on existing projects.');
+        addChatMessage('ai', 'Welcome! I\'m your AI coding assistant. I can:\n\n🔨 **Build complete projects** - Just describe your idea\n📁 **Work on your repositories** - Load your GitHub repos and ask me to add/modify code\n🐍 **Add any language** - Python, JavaScript, HTML, CSS, Java, etc.\n🔧 **Fix bugs and add features** - Just tell me what you need\n\nTo get started: Load your repositories or describe a project idea!');
     </script>
 </body>
 </html>

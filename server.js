@@ -129,19 +129,30 @@ app.post('/api/debug-code', async (req, res) => {
   }
 });
 
-// Chat with AI
+// Chat with AI (Repository-aware)
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, selectedRepo, repoFiles } = req.body;
+    
+    let systemPrompt = 'You are an expert AI coding assistant specialized in repository management and code generation.';
+    
+    if (selectedRepo) {
+      systemPrompt += ` You are currently working on the repository "${selectedRepo.name}". You can create, modify, or analyze files in this repository. When the user asks for code changes, provide specific file names and complete code content.`;
+    }
+    
+    let contextMessage = message;
+    if (repoFiles && repoFiles.length > 0) {
+      contextMessage += `\n\nCurrent repository files: ${repoFiles.join(', ')}`;
+    }
     
     const response = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-chat',
+      model: 'deepseek-coder',
       messages: [
-        { role: 'system', content: 'You are a helpful AI coding assistant. Help users with programming questions, code explanations, and development guidance.' },
-        { role: 'user', content: message }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: contextMessage }
       ],
-      temperature: 0.7,
-      max_tokens: 1500
+      temperature: 0.3,
+      max_tokens: 2000
     }, {
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -153,10 +164,56 @@ app.post('/api/chat', async (req, res) => {
     
     res.json({
       success: true,
-      response: aiResponse
+      response: aiResponse,
+      hasCodeAction: message.toLowerCase().includes('add') || message.toLowerCase().includes('create') || message.toLowerCase().includes('modify')
     });
   } catch (error) {
     console.error('Chat error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Generate and commit code to repository
+app.post('/api/repo/generate-code', async (req, res) => {
+  try {
+    const { owner, repo, instruction, language, fileName } = req.body;
+    
+    const systemPrompt = `You are an expert ${language} programmer. Generate complete, production-ready code based on the user's instruction. Return only the code without explanations or markdown formatting.`;
+    
+    const response = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-coder',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: instruction }
+      ],
+      temperature: 0.1,
+      max_tokens: 3000
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const generatedCode = response.data.choices[0].message.content;
+    
+    // Upload to GitHub
+    const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
+      owner,
+      repo,
+      path: fileName,
+      message: `Add ${fileName} - AI generated code`,
+      content: Buffer.from(generatedCode).toString('base64')
+    });
+    
+    res.json({
+      success: true,
+      code: generatedCode,
+      fileName: fileName,
+      commitUrl: uploadResponse.data.commit.html_url
+    });
+  } catch (error) {
+    console.error('Code generation error:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
