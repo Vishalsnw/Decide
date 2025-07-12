@@ -129,9 +129,48 @@ app.post('/api/debug-code', async (req, res) => {
   }
 });
 
+// Chat with AI
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    const response = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-chat',
+      messages: [
+        { role: 'system', content: 'You are a helpful AI coding assistant. Help users with programming questions, code explanations, and development guidance.' },
+        { role: 'user', content: message }
+      ],
+      temperature: 0.7,
+      max_tokens: 1500
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const aiResponse = response.data.choices[0].message.content;
+    
+    res.json({
+      success: true,
+      response: aiResponse
+    });
+  } catch (error) {
+    console.error('Chat error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // GitHub Integration - List Repositories
 app.get('/api/github/repos', async (req, res) => {
   try {
+    if (!process.env.GITHUB_TOKEN) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'GitHub token not configured. Please add your GitHub token to the environment variables.' 
+      });
+    }
+
     const { data } = await octokit.rest.repos.listForAuthenticatedUser({
       sort: 'updated',
       per_page: 50
@@ -149,8 +188,11 @@ app.get('/api/github/repos', async (req, res) => {
       }))
     });
   } catch (error) {
-    console.error('GitHub repos error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('GitHub repos error:', error.response?.data || error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: `GitHub API Error: ${error.response?.data?.message || error.message}. Please check your GitHub token.` 
+    });
   }
 });
 
