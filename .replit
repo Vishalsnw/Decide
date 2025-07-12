@@ -1,4 +1,5 @@
 run = "npm run build "
+modules = ["nodejs-20"]
 [nix]
 channel = "stable-24_05"
 
@@ -20,3 +21,7 @@ args = "npm install"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node server.js"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
