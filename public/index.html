@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,62 +11,62 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
         }
-        
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
-        
+
         .header {
             text-align: center;
             color: white;
             margin-bottom: 30px;
         }
-        
+
         .header h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
         }
-        
+
         .main-content {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             margin-bottom: 20px;
         }
-        
+
         .card {
             background: white;
             border-radius: 10px;
             padding: 25px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
-        
+
         .card h2 {
             color: #4a5568;
             margin-bottom: 20px;
             font-size: 1.4em;
         }
-        
+
         .form-group {
             margin-bottom: 20px;
         }
-        
+
         label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
             color: #4a5568;
         }
-        
+
         input, textarea, select {
             width: 100%;
             padding: 12px;
@@ -76,18 +75,18 @@
             font-size: 14px;
             transition: border-color 0.3s;
         }
-        
+
         input:focus, textarea:focus, select:focus {
             outline: none;
             border-color: #667eea;
         }
-        
+
         textarea {
             resize: vertical;
             min-height: 120px;
             font-family: 'Courier New', monospace;
         }
-        
+
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -100,17 +99,17 @@
             transition: transform 0.2s;
             width: 100%;
         }
-        
+
         .btn:hover {
             transform: translateY(-2px);
         }
-        
+
         .btn:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
-        
+
         .output {
             grid-column: 1 / -1;
             background: #1a202c;
@@ -124,13 +123,13 @@
             overflow-y: auto;
             white-space: pre-wrap;
         }
-        
+
         .loading {
             display: none;
             text-align: center;
             padding: 20px;
         }
-        
+
         .spinner {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #667eea;
@@ -140,12 +139,12 @@
             animation: spin 1s linear infinite;
             margin: 0 auto 10px;
         }
-        
+
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        
+
         .repo-list {
             max-height: 200px;
             overflow-y: auto;
@@ -153,29 +152,29 @@
             border-radius: 6px;
             padding: 10px;
         }
-        
+
         .repo-item {
             padding: 8px;
             cursor: pointer;
             border-radius: 4px;
             margin-bottom: 5px;
         }
-        
+
         .repo-item:hover {
             background: #f7fafc;
         }
-        
+
         .repo-item.selected {
             background: #667eea;
             color: white;
         }
-        
+
         .tabs {
             display: flex;
             margin-bottom: 20px;
             border-bottom: 2px solid #e2e8f0;
         }
-        
+
         .tab {
             padding: 12px 24px;
             cursor: pointer;
@@ -183,36 +182,63 @@
             font-weight: 600;
             color: #4a5568;
         }
-        
+
         .tab.active {
             border-bottom-color: #667eea;
             color: #667eea;
         }
-        
+
         .tab-content {
             display: none;
         }
-        
+
         .tab-content.active {
             display: block;
         }
-        
+
         .chat-message {
             margin-bottom: 15px;
             padding: 10px;
             border-radius: 8px;
         }
-        
+
         .user-message {
             background: #667eea;
             color: white;
             margin-left: 50px;
         }
-        
+
         .ai-message {
             background: #e2e8f0;
             color: #4a5568;
             margin-right: 50px;
+        }
+
+        #repo-actions {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        #file-browser {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        #file-editor {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
         }
     </style>
 </head>
@@ -222,7 +248,7 @@
             <h1>🤖 AI Coding Assistant</h1>
             <p>Write, Test, and Debug Code with AI + GitHub Integration</p>
         </div>
-        
+
         <div class="tabs">
             <div class="tab active" onclick="switchTab('generate')">Generate Code</div>
             <div class="tab" onclick="switchTab('test')">Test Code</div>
@@ -230,7 +256,7 @@
             <div class="tab" onclick="switchTab('chat')">Chat with AI</div>
             <div class="tab" onclick="switchTab('github')">GitHub</div>
         </div>
-        
+
         <div class="main-content">
             <!-- Code Generation Tab -->
             <div id="generate-content" class="tab-content active">
@@ -259,7 +285,7 @@
                     <button class="btn" onclick="generateCode()">Generate Code</button>
                 </div>
             </div>
-            
+
             <!-- Test Generation Tab -->
             <div id="test-content" class="tab-content">
                 <div class="card">
@@ -287,7 +313,7 @@
                     <button class="btn" onclick="generateTests()">Generate Tests</button>
                 </div>
             </div>
-            
+
             <!-- Debug Tab -->
             <div id="debug-content" class="tab-content">
                 <div class="card">
@@ -312,7 +338,7 @@
                     <button class="btn" onclick="debugCode()">Debug & Fix</button>
                 </div>
             </div>
-            
+
             <!-- Chat Tab -->
             <div id="chat-content" class="tab-content">
                 <div class="card">
@@ -327,38 +353,57 @@
                     <button class="btn" onclick="sendChatMessage()">Send Message</button>
                 </div>
             </div>
-            
+
             <!-- GitHub Tab -->
-            <div id="github-content" class="tab-content">
+           <div id="github-content" class="tab-content">
                 <div class="card">
                     <h2>📂 GitHub Integration</h2>
                     <button class="btn" onclick="loadRepos()" style="margin-bottom: 20px;">Load My Repositories</button>
                     <div id="repo-list" class="repo-list"></div>
+
+                    <div id="repo-actions">
+                        <h3>Selected Repository: <span id="selected-repo-name"></span></h3>
+                        <button class="btn" onclick="browseFiles()">Browse Files</button>
+                    </div>
+
+                    <div id="file-browser"></div>
+
+                    <div id="file-editor">
+                        <h3>Current File: <span id="current-file-path"></span></h3>
+                        <div class="form-group">
+                            <label for="file-content">File Content:</label>
+                            <textarea id="file-content" placeholder="Code to save to repository"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="modification-request">Modification Request:</label>
+                            <textarea id="modification-request" placeholder="e.g., Fix the bug in this function"></textarea>
+                        </div>
+                        <button class="btn" onclick="aiModifyCode()">AI Modify Code</button>
+                        <button class="btn" onclick="saveFile()">Save File</button>
+                    </div>
+
                     <div class="form-group">
-                        <label for="file-path">File Path:</label>
+                        <label for="file-path">New File Path:</label>
                         <input type="text" id="file-path" placeholder="e.g., src/utils.js">
                     </div>
                     <div class="form-group">
-                        <label for="file-content">File Content:</label>
-                        <textarea id="file-content" placeholder="Code to save to repository"></textarea>
+                        <label for="new-file-content">New File Content:</label>
+                        <textarea id="new-file-content" placeholder="Code to save to repository"></textarea>
                     </div>
-                    <div class="form-group">
-                        <label for="commit-message">Commit Message:</label>
-                        <input type="text" id="commit-message" placeholder="e.g., Add new utility function">
-                    </div>
-                    <button class="btn" onclick="updateFile()">Save to Repository</button>
+                    <button class="btn" onclick="saveFile()">Save New File</button>
                 </div>
             </div>
-            
+
+
             <div class="loading" id="loading">
                 <div class="spinner"></div>
                 <p>Processing your request...</p>
             </div>
         </div>
-        
+
         <div class="output" id="output">
             Welcome to AI Coding Assistant! 🚀
-            
+
 Ready to help you:
 ✅ Generate code from natural language
 ✅ Create comprehensive tests
@@ -371,49 +416,249 @@ Start by describing what you want to build in the "Generate Code" tab.
 
     <script>
         let selectedRepo = null;
-        
-        function switchTab(tabName) {
-            // Hide all tab contents
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            
-            // Remove active class from all tabs
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            
-            // Show selected tab content
-            document.getElementById(tabName + '-content').classList.add('active');
-            
-            // Add active class to selected tab
-            event.target.classList.add('active');
+        let currentFile = null;
+
+        async function loadRepos() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<div class="spinner"></div>Loading repositories...';
+
+            try {
+                const response = await fetch('/api/github/repos');
+                const data = await response.json();
+
+                if (data.success) {
+                    const repoList = document.getElementById('repo-list');
+                    repoList.innerHTML = '';
+
+                    data.repos.forEach(repo => {
+                        const repoItem = document.createElement('div');
+                        repoItem.className = 'repo-item';
+                        repoItem.innerHTML = `
+                            <strong>${repo.name}</strong>
+                            <small>${repo.description || 'No description'}</small>
+                            <div style="font-size: 12px; color: #666;">
+                                ${repo.language || 'Unknown'} • Updated ${new Date(repo.updated_at).toLocaleDateString()}
+                            </div>
+                        `;
+                        repoItem.onclick = () => selectRepo(repo, repoItem);
+                        repoList.appendChild(repoItem);
+                    });
+
+                    output.innerHTML = `✅ Loaded ${data.repos.length} repositories`;
+                } else {
+                    output.innerHTML = `❌ Error: ${data.error}`;
+                }
+            } catch (error) {
+                output.innerHTML = `❌ Error loading repositories: ${error.message}`;
+            }
         }
-        
-        function showLoading() {
-            document.getElementById('loading').style.display = 'block';
+
+        function selectRepo(repo, element) {
+            selectedRepo = repo;
+            document.querySelectorAll('.repo-item').forEach(item => item.classList.remove('selected'));
+            element.classList.add('selected');
+
+            document.getElementById('selected-repo-name').textContent = repo.full_name;
+            document.getElementById('repo-actions').style.display = 'block';
         }
-        
-        function hideLoading() {
-            document.getElementById('loading').style.display = 'none';
+
+        async function browseFiles(path = '') {
+            if (!selectedRepo) return;
+
+            const output = document.getElementById('output');
+            output.innerHTML = '<div class="spinner"></div>Loading files...';
+
+            try {
+                const response = await fetch(`/api/github/files/${selectedRepo.full_name}?path=${path}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const fileBrowser = document.getElementById('file-browser');
+                    fileBrowser.innerHTML = '';
+
+                    data.files.forEach(file => {
+                        const fileItem = document.createElement('div');
+                        fileItem.className = 'file-item';
+                        fileItem.style.cssText = 'padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 5px;';
+                        fileItem.innerHTML = `
+                            ${file.type === 'dir' ? '📁' : '📄'} ${file.name}
+                            ${file.type === 'file' ? `<small>(${file.size} bytes)</small>` : ''}
+                        `;
+
+                        fileItem.onclick = () => {
+                            if (file.type === 'dir') {
+                                browseFiles(file.path);
+                            } else {
+                                loadFileContent(file.path);
+                            }
+                        };
+
+                        fileItem.onmouseover = () => fileItem.style.background = '#f7fafc';
+                        fileItem.onmouseout = () => fileItem.style.background = 'transparent';
+
+                        fileBrowser.appendChild(fileItem);
+                    });
+
+                    output.innerHTML = `✅ Loaded ${data.files.length} items`;
+                } else {
+                    output.innerHTML = `❌ Error: ${data.error}`;
+                }
+            } catch (error) {
+                output.innerHTML = `❌ Error loading files: ${error.message}`;
+            }
         }
-        
-        function updateOutput(content) {
-            document.getElementById('output').textContent = content;
+
+        async function loadFileContent(filePath) {
+            if (!selectedRepo) return;
+
+            const output = document.getElementById('output');
+            output.innerHTML = '<div class="spinner"></div>Loading file content...';
+
+            try {
+                const response = await fetch(`/api/github/file/${selectedRepo.full_name}/${filePath}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    currentFile = data;
+                    document.getElementById('current-file-path').textContent = filePath;
+                    document.getElementById('file-content').value = data.content;
+                    document.getElementById('file-editor').style.display = 'block';
+
+                    output.innerHTML = `✅ Loaded file: ${filePath}`;
+                } else {
+                    output.innerHTML = `❌ Error: ${data.error}`;
+                }
+            } catch (error) {
+                output.innerHTML = `❌ Error loading file: ${error.message}`;
+            }
         }
-        
+
+        async function aiModifyCode() {
+            if (!selectedRepo || !currentFile) return;
+
+            const modificationRequest = document.getElementById('modification-request').value;
+            const currentContent = document.getElementById('file-content').value;
+
+            if (!modificationRequest) {
+                alert('Please enter a modification request');
+                return;
+            }
+
+            const output = document.getElementById('output');
+            output.innerHTML = '<div class="spinner"></div>AI is modifying your code...';
+
+            try {
+                const fileExtension = currentFile.path.split('.').pop().toLowerCase();
+                const languageMap = {
+                    'js': 'javascript',
+                    'jsx': 'javascript',
+                    'ts': 'typescript',
+                    'tsx': 'typescript',
+                    'py': 'python',
+                    'java': 'java',
+                    'cpp': 'cpp',
+                    'c': 'c',
+                    'cs': 'csharp',
+                    'php': 'php',
+                    'rb': 'ruby',
+                    'go': 'go',
+                    'rs': 'rust'
+                };
+
+                const language = languageMap[fileExtension] || 'text';
+
+                const response = await fetch('/api/github/ai-modify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        owner: selectedRepo.full_name.split('/')[0],
+                        repo: selectedRepo.full_name.split('/')[1],
+                        filePath: currentFile.path,
+                        currentContent,
+                        modification: modificationRequest,
+                        language
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('file-content').value = data.modifiedCode;
+                    output.innerHTML = `✅ AI has modified your code! Review the changes and save when ready.`;
+                } else {
+                    output.innerHTML = `❌ Error: ${data.error}`;
+                }
+            } catch (error) {
+                output.innerHTML = `❌ Error modifying code: ${error.message}`;
+            }
+        }
+
+        async function saveFile() {
+            if (!selectedRepo) {
+                alert('Please select a repository first');
+                return;
+            }
+
+            let filePath, fileContent;
+
+            if (currentFile && document.getElementById('file-editor').style.display !== 'none') {
+                // Save current edited file
+                filePath = currentFile.path;
+                fileContent = document.getElementById('file-content').value;
+            } else {
+                // Save new file
+                filePath = document.getElementById('file-path').value;
+                fileContent = document.getElementById('new-file-content').value;
+            }
+
+            if (!filePath || !fileContent) {
+                alert('Please provide both file path and content');
+                return;
+            }
+
+            const output = document.getElementById('output');
+            output.innerHTML = '<div class="spinner"></div>Saving file...';
+
+            try {
+                const [owner, repo] = selectedRepo.full_name.split('/');
+                const response = await fetch('/api/github/update-file', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        owner,
+                        repo,
+                        path: filePath,
+                        content: fileContent,
+                        message: `Update ${filePath} via AI Coding Assistant`
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    output.innerHTML = `✅ File saved successfully! Commit: ${data.commit.sha}`;
+                    // Clear modification request after successful save
+                    document.getElementById('modification-request').value = '';
+                } else {
+                    output.innerHTML = `❌ Error: ${data.error}`;
+                }
+            } catch (error) {
+                output.innerHTML = `❌ Error saving file: ${error.message}`;
+            }
+        }
+
         async function generateCode() {
             const prompt = document.getElementById('prompt').value;
             const language = document.getElementById('language').value;
             const context = document.getElementById('context').value;
-            
+
             if (!prompt.trim()) {
                 alert('Please enter a description of what you want to build');
                 return;
             }
-            
+
             showLoading();
-            
+
             try {
                 const response = await fetch('/api/generate-code', {
                     method: 'POST',
@@ -422,12 +667,12 @@ Start by describing what you want to build in the "Generate Code" tab.
                     },
                     body: JSON.stringify({ prompt, language, context })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     updateOutput(`Generated ${language} code:\n\n${result.code}`);
-                    
+
                     // Auto-populate the file content for GitHub integration
                     document.getElementById('file-content').value = result.code;
                 } else {
@@ -436,22 +681,22 @@ Start by describing what you want to build in the "Generate Code" tab.
             } catch (error) {
                 updateOutput(`Error: ${error.message}`);
             }
-            
+
             hideLoading();
         }
-        
+
         async function generateTests() {
             const code = document.getElementById('test-code').value;
             const language = document.getElementById('test-language').value;
             const framework = document.getElementById('test-framework').value;
-            
+
             if (!code.trim()) {
                 alert('Please enter code to test');
                 return;
             }
-            
+
             showLoading();
-            
+
             try {
                 const response = await fetch('/api/generate-tests', {
                     method: 'POST',
@@ -460,9 +705,9 @@ Start by describing what you want to build in the "Generate Code" tab.
                     },
                     body: JSON.stringify({ code, language, testFramework: framework })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     updateOutput(`Generated ${framework} tests:\n\n${result.tests}`);
                 } else {
@@ -471,22 +716,22 @@ Start by describing what you want to build in the "Generate Code" tab.
             } catch (error) {
                 updateOutput(`Error: ${error.message}`);
             }
-            
+
             hideLoading();
         }
-        
+
         async function debugCode() {
             const code = document.getElementById('debug-code').value;
             const error = document.getElementById('error-message').value;
             const language = document.getElementById('debug-language').value;
-            
+
             if (!code.trim() || !error.trim()) {
                 alert('Please enter both the problematic code and error message');
                 return;
             }
-            
+
             showLoading();
-            
+
             try {
                 const response = await fetch('/api/debug-code', {
                     method: 'POST',
@@ -495,9 +740,9 @@ Start by describing what you want to build in the "Generate Code" tab.
                     },
                     body: JSON.stringify({ code, error, language })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     updateOutput(`Debug Analysis:\n\n${result.debug}`);
                 } else {
@@ -506,71 +751,25 @@ Start by describing what you want to build in the "Generate Code" tab.
             } catch (error) {
                 updateOutput(`Error: ${error.message}`);
             }
-            
+
             hideLoading();
         }
-        
-        async function loadRepos() {
-            showLoading();
-            
-            try {
-                const response = await fetch('/api/github/repos');
-                const result = await response.json();
-                
-                if (result.success) {
-                    const repoList = document.getElementById('repo-list');
-                    repoList.innerHTML = '';
-                    
-                    result.repos.forEach(repo => {
-                        const repoItem = document.createElement('div');
-                        repoItem.className = 'repo-item';
-                        repoItem.innerHTML = `
-                            <strong>${repo.name}</strong><br>
-                            <small>${repo.description || 'No description'} • ${repo.language || 'Unknown'}</small>
-                        `;
-                        repoItem.onclick = () => selectRepo(repo, repoItem);
-                        repoList.appendChild(repoItem);
-                    });
-                    
-                    updateOutput(`Loaded ${result.repos.length} repositories from your GitHub account.`);
-                } else {
-                    updateOutput(`Error loading repositories: ${result.error}`);
-                }
-            } catch (error) {
-                updateOutput(`Error: ${error.message}`);
-            }
-            
-            hideLoading();
-        }
-        
-        function selectRepo(repo, element) {
-            // Remove previous selection
-            document.querySelectorAll('.repo-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-            
-            // Select current repo
-            element.classList.add('selected');
-            selectedRepo = repo;
-            
-            updateOutput(`Selected repository: ${repo.full_name}`);
-        }
-        
+
         async function sendChatMessage() {
             const chatInput = document.getElementById('chat-input');
             const message = chatInput.value.trim();
-            
+
             if (!message) {
                 alert('Please enter a message');
                 return;
             }
-            
+
             // Add user message to chat
             addChatMessage(message, 'user');
             chatInput.value = '';
-            
+
             showLoading();
-            
+
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
@@ -579,9 +778,9 @@ Start by describing what you want to build in the "Generate Code" tab.
                     },
                     body: JSON.stringify({ message })
                 });
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
                     addChatMessage(result.response, 'ai');
                 } else {
@@ -590,10 +789,10 @@ Start by describing what you want to build in the "Generate Code" tab.
             } catch (error) {
                 addChatMessage(`Error: ${error.message}`, 'ai');
             }
-            
+
             hideLoading();
         }
-        
+
         function addChatMessage(message, sender) {
             const chatMessages = document.getElementById('chat-messages');
             const messageDiv = document.createElement('div');
@@ -602,7 +801,7 @@ Start by describing what you want to build in the "Generate Code" tab.
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-        
+
         // Allow Enter key to send chat message
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('chat-input').addEventListener('keypress', function(e) {
@@ -611,59 +810,6 @@ Start by describing what you want to build in the "Generate Code" tab.
                 }
             });
         });
-
-        async function updateFile() {
-            if (!selectedRepo) {
-                alert('Please select a repository first');
-                return;
-            }
-            
-            const filePath = document.getElementById('file-path').value;
-            const fileContent = document.getElementById('file-content').value;
-            const commitMessage = document.getElementById('commit-message').value;
-            
-            if (!filePath.trim() || !fileContent.trim() || !commitMessage.trim()) {
-                alert('Please fill in all fields');
-                return;
-            }
-            
-            showLoading();
-            
-            try {
-                const [owner, repo] = selectedRepo.full_name.split('/');
-                
-                const response = await fetch('/api/github/update-file', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        owner,
-                        repo,
-                        path: filePath,
-                        content: fileContent,
-                        message: commitMessage
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    updateOutput(`✅ File successfully saved to ${selectedRepo.full_name}!\n\nCommit: ${result.commit.sha}\nMessage: ${commitMessage}`);
-                    
-                    // Clear the form
-                    document.getElementById('file-path').value = '';
-                    document.getElementById('file-content').value = '';
-                    document.getElementById('commit-message').value = '';
-                } else {
-                    updateOutput(`Error saving file: ${result.error}`);
-                }
-            } catch (error) {
-                updateOutput(`Error: ${error.message}`);
-            }
-            
-            hideLoading();
-        }
     </script>
 </body>
 </html>

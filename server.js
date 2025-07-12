@@ -259,6 +259,91 @@ app.post('/api/run-tests', async (req, res) => {
   }
 });
 
+// Get Repository Files
+app.get('/api/github/files/:owner/:repo', async (req, res) => {
+  try {
+    const { owner, repo } = req.params;
+    const { path = '' } = req.query;
+    
+    const { data } = await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path
+    });
+    
+    res.json({
+      success: true,
+      files: Array.isArray(data) ? data : [data]
+    });
+  } catch (error) {
+    console.error('Get files error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get File Content
+app.get('/api/github/file/:owner/:repo/*', async (req, res) => {
+  try {
+    const { owner, repo } = req.params;
+    const filePath = req.params[0];
+    
+    const { data } = await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path: filePath
+    });
+    
+    const content = Buffer.from(data.content, 'base64').toString('utf8');
+    
+    res.json({
+      success: true,
+      content,
+      sha: data.sha,
+      path: filePath
+    });
+  } catch (error) {
+    console.error('Get file content error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// AI-Powered Code Modification
+app.post('/api/github/ai-modify', async (req, res) => {
+  try {
+    const { owner, repo, filePath, currentContent, modification, language } = req.body;
+    
+    const systemPrompt = `You are an expert ${language} programmer. Modify the provided code based on the user's request. Return only the modified code without explanations or markdown formatting.`;
+    
+    const userPrompt = `Current code:\n\`\`\`${language}\n${currentContent}\n\`\`\`\n\nModification request: ${modification}\n\nReturn the complete modified code:`;
+    
+    const response = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-coder',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 3000
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const modifiedCode = response.data.choices[0].message.content;
+    
+    res.json({
+      success: true,
+      modifiedCode,
+      originalCode: currentContent
+    });
+  } catch (error) {
+    console.error('AI modification error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Create/Update File in Repository
 app.post('/api/github/update-file', async (req, res) => {
   try {
