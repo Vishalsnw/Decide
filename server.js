@@ -171,10 +171,22 @@ app.get('/api/github/repos', async (req, res) => {
       });
     }
 
+    // Validate token format
+    if (!process.env.GITHUB_TOKEN.startsWith('github_pat_') && !process.env.GITHUB_TOKEN.startsWith('ghp_')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid GitHub token format. Please use a valid Personal Access Token.'
+      });
+    }
+
+    console.log('Attempting to fetch repos with token:', process.env.GITHUB_TOKEN.substring(0, 20) + '...');
+    
     const { data } = await octokit.rest.repos.listForAuthenticatedUser({
       sort: 'updated',
       per_page: 50
     });
+    
+    console.log(`Successfully fetched ${data.length} repositories`);
     
     res.json({
       success: true,
@@ -184,14 +196,25 @@ app.get('/api/github/repos', async (req, res) => {
         description: repo.description,
         language: repo.language,
         updated_at: repo.updated_at,
-        clone_url: repo.clone_url
+        clone_url: repo.clone_url,
+        private: repo.private
       }))
     });
   } catch (error) {
     console.error('GitHub repos error:', error.response?.data || error.message);
-    res.status(500).json({ 
+    
+    let errorMessage = 'Unknown GitHub API error';
+    if (error.response?.status === 401) {
+      errorMessage = 'GitHub token is invalid or expired. Please check your Personal Access Token.';
+    } else if (error.response?.status === 403) {
+      errorMessage = 'GitHub token lacks required permissions. Please ensure it has "repo" and "user" scopes.';
+    } else if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    }
+    
+    res.status(error.response?.status || 500).json({ 
       success: false, 
-      error: `GitHub API Error: ${error.response?.data?.message || error.message}. Please check your GitHub token.` 
+      error: `GitHub API Error: ${errorMessage}` 
     });
   }
 });
