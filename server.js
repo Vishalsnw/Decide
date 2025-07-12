@@ -383,6 +383,228 @@ app.post('/api/github/update-file', async (req, res) => {
   }
 });
 
+// Create GitHub Repository
+app.post('/api/github/create-repo', async (req, res) => {
+  try {
+    const { name, description, private: isPrivate = false } = req.body;
+    
+    const { data } = await octokit.rest.repos.createForAuthenticatedUser({
+      name,
+      description,
+      private: isPrivate,
+      auto_init: true
+    });
+    
+    res.json({
+      success: true,
+      ...data
+    });
+  } catch (error) {
+    console.error('Create repo error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Generate Project Plan
+app.post('/api/generate-project-plan', async (req, res) => {
+  try {
+    const { idea, projectName, techStack } = req.body;
+    
+    const systemPrompt = `You are an expert software architect. Create a detailed project plan for building a web application. Return your response as a JSON object with the following structure:
+    {
+      "architecture": "description of the overall architecture",
+      "files": ["list", "of", "files", "to", "create"],
+      "features": ["list", "of", "key", "features"],
+      "techDetails": "technical implementation details"
+    }`;
+    
+    const userPrompt = `Create a project plan for: "${idea}"
+    Project Name: ${projectName}
+    Technology Stack: ${techStack}
+    
+    Make it production-ready with proper error handling, responsive design, and best practices.`;
+    
+    const response = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-coder',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.2,
+      max_tokens: 2000
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const planText = response.data.choices[0].message.content;
+    
+    res.json({
+      success: true,
+      plan: planText
+    });
+  } catch (error) {
+    console.error('Project plan error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Generate Project Files
+app.post('/api/generate-project-files', async (req, res) => {
+  try {
+    const { plan, projectName, techStack } = req.body;
+    
+    const systemPrompt = `You are an expert full-stack developer. Generate complete, production-ready files for a web application based on the provided plan. 
+
+    IMPORTANT: Return your response as a JSON object where each key is a file path and each value is the complete file content. Format:
+    {
+      "index.html": "<!DOCTYPE html>...",
+      "style.css": "/* CSS content */...",
+      "script.js": "// JavaScript content...",
+      "README.md": "# Project documentation..."
+    }
+    
+    Include ALL necessary files for a working application.`;
+    
+    const userPrompt = `Generate complete files for this project:
+    Plan: ${plan}
+    Project Name: ${projectName}
+    Tech Stack: ${techStack}
+    
+    Create a fully functional web application with:
+    - Responsive HTML structure
+    - Professional CSS styling
+    - Complete JavaScript functionality
+    - README with setup instructions
+    - Any necessary configuration files
+    
+    Make it production-ready and visually appealing.`;
+    
+    const response = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-coder',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 4000
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const filesText = response.data.choices[0].message.content;
+    
+    // Try to parse as JSON, if fails, create a simple structure
+    let files;
+    try {
+      files = JSON.parse(filesText);
+    } catch (e) {
+      // Fallback: create basic files structure
+      files = {
+        'index.html': filesText,
+        'README.md': `# ${projectName}\n\nAI-generated web application.\n\n## Setup\n1. Open index.html in a browser\n2. Enjoy your app!`
+      };
+    }
+    
+    res.json({
+      success: true,
+      files: files
+    });
+  } catch (error) {
+    console.error('File generation error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Test Project
+app.post('/api/test-project', async (req, res) => {
+  try {
+    const { files, techStack } = req.body;
+    
+    // Simulate testing by checking for common issues
+    const issues = [];
+    
+    // Check for HTML structure
+    if (files['index.html']) {
+      const html = files['index.html'];
+      if (!html.includes('<!DOCTYPE html>')) {
+        issues.push('Missing DOCTYPE declaration');
+      }
+      if (!html.includes('<title>')) {
+        issues.push('Missing page title');
+      }
+    }
+    
+    // Check for CSS
+    if (!files['style.css'] && !files['styles.css']) {
+      issues.push('No CSS file found');
+    }
+    
+    res.json({
+      success: true,
+      issues: issues,
+      status: issues.length === 0 ? 'passed' : 'issues_found'
+    });
+  } catch (error) {
+    console.error('Project test error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Fix Project Issues
+app.post('/api/fix-project-issues', async (req, res) => {
+  try {
+    const { files, issues, techStack } = req.body;
+    
+    const systemPrompt = `You are an expert developer. Fix the identified issues in the provided files. Return the corrected files as a JSON object with the same structure.`;
+    
+    const userPrompt = `Fix these issues in the project files:
+    Issues: ${issues.join(', ')}
+    
+    Current Files:
+    ${JSON.stringify(files, null, 2)}
+    
+    Return the corrected files as JSON.`;
+    
+    const response = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-coder',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 3000
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const fixedFilesText = response.data.choices[0].message.content;
+    
+    let fixedFiles;
+    try {
+      fixedFiles = JSON.parse(fixedFilesText);
+    } catch (e) {
+      fixedFiles = files; // Return original if parsing fails
+    }
+    
+    res.json({
+      success: true,
+      files: fixedFiles
+    });
+  } catch (error) {
+    console.error('Fix issues error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // For Vercel deployment
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, '0.0.0.0', () => {
