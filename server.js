@@ -275,6 +275,11 @@ app.post('/api/github/update-file', async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`AI Coding Assistant running on http://0.0.0.0:${PORT}`);
-});
+// For Vercel deployment
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`AI Coding Assistant running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+module.exports = app;
