@@ -4,3 +4,19 @@ channel = "stable-24_05"
 
 [deployment]
 run = ["sh", "-c", "npm run build "]
+
+[workflows]
+runButton = "Start AI Coding Assistant"
+
+[[workflows.workflow]]
+name = "Start AI Coding Assistant"
+author = 43564906
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm install"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server.js"
