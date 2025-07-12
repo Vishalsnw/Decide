@@ -1,0 +1,579 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Coding Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-dark.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .output {
+            grid-column: 1 / -1;
+            background: #1a202c;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .repo-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        
+        .repo-item {
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        
+        .repo-item:hover {
+            background: #f7fafc;
+        }
+        
+        .repo-item.selected {
+            background: #667eea;
+            color: white;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        .tab.active {
+            border-bottom-color: #667eea;
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Coding Assistant</h1>
+            <p>Write, Test, and Debug Code with AI + GitHub Integration</p>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('generate')">Generate Code</div>
+            <div class="tab" onclick="switchTab('test')">Test Code</div>
+            <div class="tab" onclick="switchTab('debug')">Debug Code</div>
+            <div class="tab" onclick="switchTab('github')">GitHub</div>
+        </div>
+        
+        <div class="main-content">
+            <!-- Code Generation Tab -->
+            <div id="generate-content" class="tab-content active">
+                <div class="card">
+                    <h2>🎯 Generate Code</h2>
+                    <div class="form-group">
+                        <label for="prompt">Describe what you want to build:</label>
+                        <textarea id="prompt" placeholder="e.g., Create a function that sorts an array of objects by date"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="language">Programming Language:</label>
+                        <select id="language">
+                            <option value="javascript">JavaScript</option>
+                            <option value="python">Python</option>
+                            <option value="java">Java</option>
+                            <option value="cpp">C++</option>
+                            <option value="csharp">C#</option>
+                            <option value="go">Go</option>
+                            <option value="rust">Rust</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="context">Additional Context (optional):</label>
+                        <textarea id="context" placeholder="Any existing code or specific requirements"></textarea>
+                    </div>
+                    <button class="btn" onclick="generateCode()">Generate Code</button>
+                </div>
+            </div>
+            
+            <!-- Test Generation Tab -->
+            <div id="test-content" class="tab-content">
+                <div class="card">
+                    <h2>🧪 Generate Tests</h2>
+                    <div class="form-group">
+                        <label for="test-code">Code to Test:</label>
+                        <textarea id="test-code" placeholder="Paste your code here"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="test-language">Language:</label>
+                        <select id="test-language">
+                            <option value="javascript">JavaScript</option>
+                            <option value="python">Python</option>
+                            <option value="java">Java</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="test-framework">Test Framework:</label>
+                        <select id="test-framework">
+                            <option value="jest">Jest (JavaScript)</option>
+                            <option value="pytest">Pytest (Python)</option>
+                            <option value="junit">JUnit (Java)</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="generateTests()">Generate Tests</button>
+                </div>
+            </div>
+            
+            <!-- Debug Tab -->
+            <div id="debug-content" class="tab-content">
+                <div class="card">
+                    <h2>🐛 Debug Code</h2>
+                    <div class="form-group">
+                        <label for="debug-code">Problematic Code:</label>
+                        <textarea id="debug-code" placeholder="Paste your code with issues"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="error-message">Error Message:</label>
+                        <textarea id="error-message" placeholder="Paste the error message or describe the issue"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="debug-language">Language:</label>
+                        <select id="debug-language">
+                            <option value="javascript">JavaScript</option>
+                            <option value="python">Python</option>
+                            <option value="java">Java</option>
+                            <option value="cpp">C++</option>
+                        </select>
+                    </div>
+                    <button class="btn" onclick="debugCode()">Debug & Fix</button>
+                </div>
+            </div>
+            
+            <!-- GitHub Tab -->
+            <div id="github-content" class="tab-content">
+                <div class="card">
+                    <h2>📂 GitHub Integration</h2>
+                    <button class="btn" onclick="loadRepos()" style="margin-bottom: 20px;">Load My Repositories</button>
+                    <div id="repo-list" class="repo-list"></div>
+                    <div class="form-group">
+                        <label for="file-path">File Path:</label>
+                        <input type="text" id="file-path" placeholder="e.g., src/utils.js">
+                    </div>
+                    <div class="form-group">
+                        <label for="file-content">File Content:</label>
+                        <textarea id="file-content" placeholder="Code to save to repository"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="commit-message">Commit Message:</label>
+                        <input type="text" id="commit-message" placeholder="e.g., Add new utility function">
+                    </div>
+                    <button class="btn" onclick="updateFile()">Save to Repository</button>
+                </div>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing your request...</p>
+            </div>
+        </div>
+        
+        <div class="output" id="output">
+            Welcome to AI Coding Assistant! 🚀
+            
+Ready to help you:
+✅ Generate code from natural language
+✅ Create comprehensive tests
+✅ Debug and fix issues
+✅ Integrate with GitHub repositories
+
+Start by describing what you want to build in the "Generate Code" tab.
+        </div>
+    </div>
+
+    <script>
+        let selectedRepo = null;
+        
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-content').classList.add('active');
+            
+            // Add active class to selected tab
+            event.target.classList.add('active');
+        }
+        
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        function updateOutput(content) {
+            document.getElementById('output').textContent = content;
+        }
+        
+        async function generateCode() {
+            const prompt = document.getElementById('prompt').value;
+            const language = document.getElementById('language').value;
+            const context = document.getElementById('context').value;
+            
+            if (!prompt.trim()) {
+                alert('Please enter a description of what you want to build');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/generate-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ prompt, language, context })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateOutput(`Generated ${language} code:\n\n${result.code}`);
+                    
+                    // Auto-populate the file content for GitHub integration
+                    document.getElementById('file-content').value = result.code;
+                } else {
+                    updateOutput(`Error: ${result.error}`);
+                }
+            } catch (error) {
+                updateOutput(`Error: ${error.message}`);
+            }
+            
+            hideLoading();
+        }
+        
+        async function generateTests() {
+            const code = document.getElementById('test-code').value;
+            const language = document.getElementById('test-language').value;
+            const framework = document.getElementById('test-framework').value;
+            
+            if (!code.trim()) {
+                alert('Please enter code to test');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/generate-tests', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code, language, testFramework: framework })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateOutput(`Generated ${framework} tests:\n\n${result.tests}`);
+                } else {
+                    updateOutput(`Error: ${result.error}`);
+                }
+            } catch (error) {
+                updateOutput(`Error: ${error.message}`);
+            }
+            
+            hideLoading();
+        }
+        
+        async function debugCode() {
+            const code = document.getElementById('debug-code').value;
+            const error = document.getElementById('error-message').value;
+            const language = document.getElementById('debug-language').value;
+            
+            if (!code.trim() || !error.trim()) {
+                alert('Please enter both the problematic code and error message');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/debug-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code, error, language })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateOutput(`Debug Analysis:\n\n${result.debug}`);
+                } else {
+                    updateOutput(`Error: ${result.error}`);
+                }
+            } catch (error) {
+                updateOutput(`Error: ${error.message}`);
+            }
+            
+            hideLoading();
+        }
+        
+        async function loadRepos() {
+            showLoading();
+            
+            try {
+                const response = await fetch('/api/github/repos');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const repoList = document.getElementById('repo-list');
+                    repoList.innerHTML = '';
+                    
+                    result.repos.forEach(repo => {
+                        const repoItem = document.createElement('div');
+                        repoItem.className = 'repo-item';
+                        repoItem.innerHTML = `
+                            <strong>${repo.name}</strong><br>
+                            <small>${repo.description || 'No description'} • ${repo.language || 'Unknown'}</small>
+                        `;
+                        repoItem.onclick = () => selectRepo(repo, repoItem);
+                        repoList.appendChild(repoItem);
+                    });
+                    
+                    updateOutput(`Loaded ${result.repos.length} repositories from your GitHub account.`);
+                } else {
+                    updateOutput(`Error loading repositories: ${result.error}`);
+                }
+            } catch (error) {
+                updateOutput(`Error: ${error.message}`);
+            }
+            
+            hideLoading();
+        }
+        
+        function selectRepo(repo, element) {
+            // Remove previous selection
+            document.querySelectorAll('.repo-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            // Select current repo
+            element.classList.add('selected');
+            selectedRepo = repo;
+            
+            updateOutput(`Selected repository: ${repo.full_name}`);
+        }
+        
+        async function updateFile() {
+            if (!selectedRepo) {
+                alert('Please select a repository first');
+                return;
+            }
+            
+            const filePath = document.getElementById('file-path').value;
+            const fileContent = document.getElementById('file-content').value;
+            const commitMessage = document.getElementById('commit-message').value;
+            
+            if (!filePath.trim() || !fileContent.trim() || !commitMessage.trim()) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const [owner, repo] = selectedRepo.full_name.split('/');
+                
+                const response = await fetch('/api/github/update-file', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        owner,
+                        repo,
+                        path: filePath,
+                        content: fileContent,
+                        message: commitMessage
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateOutput(`✅ File successfully saved to ${selectedRepo.full_name}!\n\nCommit: ${result.commit.sha}\nMessage: ${commitMessage}`);
+                    
+                    // Clear the form
+                    document.getElementById('file-path').value = '';
+                    document.getElementById('file-content').value = '';
+                    document.getElementById('commit-message').value = '';
+                } else {
+                    updateOutput(`Error saving file: ${result.error}`);
+                }
+            } catch (error) {
+                updateOutput(`Error: ${error.message}`);
+            }
+            
+            hideLoading();
+        }
+    </script>
+</body>
+</html>
