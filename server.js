@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -29,9 +28,9 @@ const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 app.post('/api/generate-code', async (req, res) => {
   try {
     const { prompt, language, context } = req.body;
-    
+
     const systemPrompt = `You are an expert ${language} programmer. Generate clean, well-commented, production-ready code based on the user's request. Include proper error handling and follow best practices.`;
-    
+
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
@@ -48,7 +47,7 @@ app.post('/api/generate-code', async (req, res) => {
     });
 
     const generatedCode = response.data.choices[0].message.content;
-    
+
     res.json({
       success: true,
       code: generatedCode,
@@ -64,9 +63,9 @@ app.post('/api/generate-code', async (req, res) => {
 app.post('/api/generate-tests', async (req, res) => {
   try {
     const { code, language, testFramework } = req.body;
-    
+
     const testPrompt = `Generate comprehensive unit tests for the following ${language} code using ${testFramework}. Include edge cases, error scenarios, and positive test cases:\n\n${code}`;
-    
+
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
@@ -83,7 +82,7 @@ app.post('/api/generate-tests', async (req, res) => {
     });
 
     const testCode = response.data.choices[0].message.content;
-    
+
     res.json({
       success: true,
       tests: testCode,
@@ -99,9 +98,9 @@ app.post('/api/generate-tests', async (req, res) => {
 app.post('/api/debug-code', async (req, res) => {
   try {
     const { code, error, language } = req.body;
-    
+
     const debugPrompt = `Debug this ${language} code that has the following error: "${error}"\n\nCode:\n${code}\n\nProvide:\n1. Explanation of the issue\n2. Fixed code\n3. Prevention tips`;
-    
+
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
@@ -118,7 +117,7 @@ app.post('/api/debug-code', async (req, res) => {
     });
 
     const debugResponse = response.data.choices[0].message.content;
-    
+
     res.json({
       success: true,
       debug: debugResponse
@@ -136,31 +135,31 @@ const projectConversations = new Map();
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, selectedRepo, sessionId = 'default' } = req.body;
-    
+
     // Use repo name as persistent key for conversation history
     const conversationKey = selectedRepo ? selectedRepo.full_name : sessionId;
-    
+
     // Get or create conversation history for this project
     if (!projectConversations.has(conversationKey)) {
       projectConversations.set(conversationKey, []);
     }
     const history = projectConversations.get(conversationKey);
-    
+
     let systemPrompt = 'You are an expert AI coding assistant like Replit Agent. You help users build, modify, and fix code. Be concise and action-focused. When making changes, briefly state what you\'re doing (e.g., "Creating login system...", "Fixing responsive layout...", "Adding API endpoints..."). Always create complete project blueprints with all necessary files.';
-    
+
     if (selectedRepo) {
       systemPrompt += ` You are working on "${selectedRepo.name}" repository. Remember all previous conversations and project context. When users request features, first create a complete blueprint of all required files, then generate each file with proper structure, styling, and functionality. Auto-commit and push all changes.`;
     } else {
       systemPrompt += ' The user hasn\'t connected a repository yet. Encourage them to import a repository so you can help build their project.';
     }
-    
+
     // Build messages array with full project history (kept until completion)
     const messages = [
       { role: 'system', content: systemPrompt },
       ...history.slice(-20), // Keep more context for project continuity
       { role: 'user', content: message }
     ];
-    
+
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: messages,
@@ -174,16 +173,16 @@ app.post('/api/chat', async (req, res) => {
     });
 
     const aiResponse = response.data.choices[0].message.content;
-    
+
     // Add to persistent project history
     history.push({ role: 'user', content: message });
     history.push({ role: 'assistant', content: aiResponse });
-    
+
     // Keep extensive history for project context (up to 40 messages)
     if (history.length > 40) {
       history.splice(0, history.length - 40);
     }
-    
+
     res.json({
       success: true,
       response: aiResponse,
@@ -199,9 +198,9 @@ app.post('/api/chat', async (req, res) => {
 app.post('/api/repo/generate-code', async (req, res) => {
   try {
     const { owner, repo, instruction } = req.body;
-    
+
     console.log(`Creating blueprint for: ${instruction}`);
-    
+
     // Step 1: Create project blueprint
     const blueprintPrompt = `Analyze this request and create a complete project blueprint: "${instruction}"
 
@@ -216,15 +215,15 @@ Return a JSON object with this exact structure:
 }
 
 Include ALL necessary files for a complete, functional project.`;
-    
-    const blueprintResponse = await axios.post(DEEPSEEK_API_URL, {
+
+    const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
-        { role: 'system', content: 'You are a project architect. Return only valid JSON.' },
+        { role: 'system', content: 'You are a project architect. You MUST respond with only valid JSON. No explanations, no markdown formatting, no additional text. Only pure JSON.' },
         { role: 'user', content: blueprintPrompt }
       ],
       temperature: 0.1,
-      max_tokens: 1000
+      max_tokens: 800
     }, {
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -248,17 +247,17 @@ Include ALL necessary files for a complete, functional project.`;
         ]
       };
     }
-    
+
     console.log(`Blueprint: ${blueprint.action} - ${blueprint.files.length} files`);
-    
+
     // Step 2: Generate each file
     const createdFiles = [];
-    
+
     for (const fileSpec of blueprint.files) {
       console.log(`Generating ${fileSpec.path}...`);
-      
+
       const filePrompt = `Create a complete, production-ready ${fileSpec.type} file for: ${instruction}
-      
+
 File: ${fileSpec.path} (${fileSpec.description})
 Context: This is part of a ${blueprint.files.length}-file project. Ensure this file works seamlessly with the other files.
 
@@ -269,7 +268,7 @@ Requirements:
 - Make it fully functional and production-ready
 
 Return ONLY the complete code without explanations or markdown.`;
-      
+
       const fileResponse = await axios.post(DEEPSEEK_API_URL, {
         model: 'deepseek-coder',
         messages: [
@@ -287,7 +286,7 @@ Return ONLY the complete code without explanations or markdown.`;
 
       let code = fileResponse.data.choices[0].message.content
         .replace(/```[a-zA-Z]*\n/g, '').replace(/```/g, '').trim();
-      
+
       // Get existing SHA if file exists
       let sha = null;
       try {
@@ -296,7 +295,7 @@ Return ONLY the complete code without explanations or markdown.`;
         });
         sha = existing.data.sha;
       } catch (e) {}
-      
+
       // Create/update file
       const upload = await octokit.rest.repos.createOrUpdateFileContents({
         owner, repo,
@@ -305,23 +304,23 @@ Return ONLY the complete code without explanations or markdown.`;
         content: Buffer.from(code).toString('base64'),
         ...(sha && { sha })
       });
-      
+
       createdFiles.push({
         path: fileSpec.path,
         action: sha ? 'updated' : 'created',
         description: fileSpec.description
       });
-      
+
       console.log(`✓ ${fileSpec.path} ${sha ? 'updated' : 'created'}`);
     }
-    
+
     res.json({
       success: true,
       action: blueprint.action,
       files: createdFiles,
       message: `${blueprint.action} - ${createdFiles.length} files ${createdFiles[0].action}`
     });
-    
+
   } catch (error) {
     console.error('Blueprint generation error:', error.message);
     res.status(500).json({ 
@@ -351,14 +350,14 @@ app.get('/api/github/repos', async (req, res) => {
     }
 
     console.log('Attempting to fetch repos with token:', process.env.GITHUB_TOKEN.substring(0, 20) + '...');
-    
+
     const { data } = await octokit.rest.repos.listForAuthenticatedUser({
       sort: 'updated',
       per_page: 50
     });
-    
+
     console.log(`Successfully fetched ${data.length} repositories`);
-    
+
     res.json({
       success: true,
       repos: data.map(repo => ({
@@ -373,7 +372,7 @@ app.get('/api/github/repos', async (req, res) => {
     });
   } catch (error) {
     console.error('GitHub repos error:', error.response?.data || error.message);
-    
+
     let errorMessage = 'Unknown GitHub API error';
     if (error.response?.status === 401) {
       errorMessage = 'GitHub token is invalid or expired. Please check your Personal Access Token.';
@@ -382,7 +381,7 @@ app.get('/api/github/repos', async (req, res) => {
     } else if (error.response?.data?.message) {
       errorMessage = error.response.data.message;
     }
-    
+
     res.status(error.response?.status || 500).json({ 
       success: false, 
       error: `GitHub API Error: ${errorMessage}` 
@@ -395,12 +394,12 @@ app.post('/api/github/clone', async (req, res) => {
   try {
     const { repoUrl, localPath } = req.body;
     const git = simpleGit();
-    
+
     const targetPath = path.join(__dirname, 'repos', localPath);
     await fs.ensureDir(targetPath);
-    
+
     await git.clone(repoUrl, targetPath);
-    
+
     res.json({
       success: true,
       message: 'Repository cloned successfully',
@@ -416,7 +415,7 @@ app.post('/api/github/clone', async (req, res) => {
 app.post('/api/run-tests', async (req, res) => {
   try {
     const { projectPath, testCommand } = req.body;
-    
+
     exec(testCommand, { cwd: projectPath }, (error, stdout, stderr) => {
       res.json({
         success: !error,
@@ -435,13 +434,13 @@ app.get('/api/github/files/:owner/:repo', async (req, res) => {
   try {
     const { owner, repo } = req.params;
     const { path = '' } = req.query;
-    
+
     const { data } = await octokit.rest.repos.getContent({
       owner,
       repo,
       path
     });
-    
+
     res.json({
       success: true,
       files: Array.isArray(data) ? data : [data]
@@ -457,15 +456,15 @@ app.get('/api/github/file/:owner/:repo/*', async (req, res) => {
   try {
     const { owner, repo } = req.params;
     const filePath = req.params[0];
-    
+
     const { data } = await octokit.rest.repos.getContent({
       owner,
       repo,
       path: filePath
     });
-    
+
     const content = Buffer.from(data.content, 'base64').toString('utf8');
-    
+
     res.json({
       success: true,
       content,
@@ -482,11 +481,11 @@ app.get('/api/github/file/:owner/:repo/*', async (req, res) => {
 app.post('/api/github/ai-modify', async (req, res) => {
   try {
     const { owner, repo, filePath, currentContent, modification, language } = req.body;
-    
+
     const systemPrompt = `You are an expert ${language} programmer. Modify the provided code based on the user's request. Return only the modified code without explanations or markdown formatting.`;
-    
+
     const userPrompt = `Current code:\n\`\`\`${language}\n${currentContent}\n\`\`\`\n\nModification request: ${modification}\n\nReturn the complete modified code:`;
-    
+
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
@@ -503,7 +502,7 @@ app.post('/api/github/ai-modify', async (req, res) => {
     });
 
     const modifiedCode = response.data.choices[0].message.content;
-    
+
     res.json({
       success: true,
       modifiedCode,
@@ -519,7 +518,7 @@ app.post('/api/github/ai-modify', async (req, res) => {
 app.post('/api/github/update-file', async (req, res) => {
   try {
     const { owner, repo, path, content, message, branch = 'main' } = req.body;
-    
+
     // Check if file exists
     let sha;
     try {
@@ -533,7 +532,7 @@ app.post('/api/github/update-file', async (req, res) => {
     } catch (error) {
       // File doesn't exist, that's okay
     }
-    
+
     const { data } = await octokit.rest.repos.createOrUpdateFileContents({
       owner,
       repo,
@@ -543,7 +542,7 @@ app.post('/api/github/update-file', async (req, res) => {
       branch,
       ...(sha && { sha })
     });
-    
+
     res.json({
       success: true,
       commit: data.commit
@@ -558,14 +557,14 @@ app.post('/api/github/update-file', async (req, res) => {
 app.post('/api/github/create-repo', async (req, res) => {
   try {
     const { name, description, private: isPrivate = false } = req.body;
-    
+
     const { data } = await octokit.rest.repos.createForAuthenticatedUser({
       name,
       description,
       private: isPrivate,
       auto_init: true
     });
-    
+
     res.json({
       success: true,
       ...data
@@ -580,7 +579,7 @@ app.post('/api/github/create-repo', async (req, res) => {
 app.post('/api/generate-project-plan', async (req, res) => {
   try {
     const { idea, projectName, techStack } = req.body;
-    
+
     const systemPrompt = `You are an expert software architect. Create a detailed project plan for building a web application. Return your response as a JSON object with the following structure:
     {
       "architecture": "description of the overall architecture",
@@ -588,13 +587,13 @@ app.post('/api/generate-project-plan', async (req, res) => {
       "features": ["list", "of", "key", "features"],
       "techDetails": "technical implementation details"
     }`;
-    
+
     const userPrompt = `Create a project plan for: "${idea}"
     Project Name: ${projectName}
     Technology Stack: ${techStack}
-    
+
     Make it production-ready with proper error handling, responsive design, and best practices.`;
-    
+
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
@@ -611,7 +610,7 @@ app.post('/api/generate-project-plan', async (req, res) => {
     });
 
     const planText = response.data.choices[0].message.content;
-    
+
     res.json({
       success: true,
       plan: planText
@@ -626,30 +625,30 @@ app.post('/api/generate-project-plan', async (req, res) => {
 app.post('/api/generate-project-files', async (req, res) => {
   try {
     const { plan, projectName, techStack } = req.body;
-    
+
     // Enhanced project templates based on tech stack
     const projectTemplates = {
       'html-css-js': async () => {
         const files = {};
-        
+
         const htmlPrompt = `Create a complete, professional HTML5 website for "${projectName}". Requirements: ${plan}. Include semantic HTML, proper meta tags, accessibility features, and modern structure.`;
         const htmlResponse = await makeAIRequest(htmlPrompt, 'You are an expert frontend developer. Generate clean, semantic HTML5 code without markdown formatting.');
         files['index.html'] = cleanCode(htmlResponse, 'html');
-        
+
         const cssPrompt = `Create modern CSS for "${projectName}". Requirements: ${plan}. Include responsive design, CSS Grid/Flexbox, modern styling, animations, and mobile-first approach.`;
         const cssResponse = await makeAIRequest(cssPrompt, 'You are an expert CSS developer. Generate clean, modern CSS without markdown formatting.');
         files['style.css'] = cleanCode(cssResponse, 'css');
-        
+
         const jsPrompt = `Create interactive JavaScript for "${projectName}". Requirements: ${plan}. Include ES6+ features, DOM manipulation, form handling, API calls, and proper error handling.`;
         const jsResponse = await makeAIRequest(jsPrompt, 'You are an expert JavaScript developer. Generate clean, modern JavaScript without markdown formatting.');
         files['script.js'] = cleanCode(jsResponse, 'js');
-        
+
         return files;
       },
-      
+
       'react': async () => {
         const files = {};
-        
+
         files['index.html'] = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -673,11 +672,11 @@ app.post('/api/generate-project-files', async (req, res) => {
         const reactPrompt = `Create a complete React application for "${projectName}". Requirements: ${plan}. Include functional components, hooks (useState, useEffect), modern React patterns, and proper component structure.`;
         const reactResponse = await makeAIRequest(reactPrompt, 'You are an expert React developer. Generate clean React JSX code without markdown formatting.');
         files['app.js'] = cleanCode(reactResponse, 'js');
-        
+
         const cssPrompt = `Create modern CSS for React app "${projectName}". Requirements: ${plan}. Include component-based styling, responsive design, and modern UI patterns.`;
         const cssResponse = await makeAIRequest(cssPrompt, 'You are an expert CSS developer. Generate clean CSS without markdown formatting.');
         files['style.css'] = cleanCode(cssResponse, 'css');
-        
+
         files['package.json'] = JSON.stringify({
           name: projectName.toLowerCase().replace(/\s+/g, '-'),
           version: '1.0.0',
@@ -686,17 +685,17 @@ app.post('/api/generate-project-files', async (req, res) => {
             'react-dom': '^18.0.0'
           }
         }, null, 2);
-        
+
         return files;
       },
-      
+
       'node-express': async () => {
         const files = {};
-        
+
         const serverPrompt = `Create a complete Express.js server for "${projectName}". Requirements: ${plan}. Include proper routing, middleware, error handling, API endpoints, and static file serving.`;
         const serverResponse = await makeAIRequest(serverPrompt, 'You are an expert Node.js/Express developer. Generate clean server code without markdown formatting.');
         files['app.js'] = cleanCode(serverResponse, 'js');
-        
+
         files['package.json'] = JSON.stringify({
           name: projectName.toLowerCase().replace(/\s+/g, '-'),
           version: '1.0.0',
@@ -714,33 +713,33 @@ app.post('/api/generate-project-files', async (req, res) => {
             nodemon: '^3.0.1'
           }
         }, null, 2);
-        
+
         const htmlPrompt = `Create an HTML frontend for Express app "${projectName}". Requirements: ${plan}. Include AJAX calls to backend APIs and modern UI.`;
         const htmlResponse = await makeAIRequest(htmlPrompt, 'You are an expert frontend developer. Generate clean HTML without markdown formatting.');
         files['public/index.html'] = cleanCode(htmlResponse, 'html');
-        
+
         return files;
       },
-      
+
       'python-flask': async () => {
         const files = {};
-        
+
         const flaskPrompt = `Create a complete Flask application for "${projectName}". Requirements: ${plan}. Include proper routing, templates, API endpoints, error handling, and Flask best practices.`;
         const flaskResponse = await makeAIRequest(flaskPrompt, 'You are an expert Python Flask developer. Generate clean Flask code without markdown formatting.');
         files['app.py'] = cleanCode(flaskResponse, 'python');
-        
+
         const htmlPrompt = `Create an HTML template for Flask app "${projectName}". Requirements: ${plan}. Use Jinja2 templating and modern frontend practices.`;
         const htmlResponse = await makeAIRequest(htmlPrompt, 'You are an expert web developer. Generate clean HTML with Jinja2 templates without markdown formatting.');
         files['templates/index.html'] = cleanCode(htmlResponse, 'html');
-        
+
         files['requirements.txt'] = `Flask==2.3.3
 python-dotenv==1.0.0
 gunicorn==21.2.0`;
-        
+
         return files;
       }
     };
-    
+
     // Helper function to make AI requests
     async function makeAIRequest(prompt, systemMessage) {
       const response = await axios.post(DEEPSEEK_API_URL, {
@@ -754,12 +753,11 @@ gunicorn==21.2.0`;
       }, {
         headers: {
           'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
+        'Content-Type': 'application/json'
       });
       return response.data.choices[0].message.content;
     }
-    
+
     // Helper function to clean code
     function cleanCode(code, type) {
       const patterns = {
@@ -770,11 +768,11 @@ gunicorn==21.2.0`;
       };
       return code.replace(patterns[type] || /```/g, '').trim();
     }
-    
+
     // Generate files based on tech stack
     const generator = projectTemplates[techStack] || projectTemplates['html-css-js'];
     const files = await generator();
-    
+
     // Add common files
     files['README.md'] = `# ${projectName}
 
@@ -807,7 +805,7 @@ ${Object.keys(files).map(file => `- \`${file}\``).join('\n')}
 ---
 Generated with AI Code Studio
 `;
-    
+
     res.json({
       success: true,
       files: files
@@ -822,10 +820,10 @@ Generated with AI Code Studio
 app.post('/api/test-project', async (req, res) => {
   try {
     const { files, techStack } = req.body;
-    
+
     // Simulate testing by checking for common issues
     const issues = [];
-    
+
     // Check for HTML structure
     if (files['index.html']) {
       const html = files['index.html'];
@@ -836,12 +834,12 @@ app.post('/api/test-project', async (req, res) => {
         issues.push('Missing page title');
       }
     }
-    
+
     // Check for CSS
     if (!files['style.css'] && !files['styles.css']) {
       issues.push('No CSS file found');
     }
-    
+
     res.json({
       success: true,
       issues: issues,
@@ -857,17 +855,16 @@ app.post('/api/test-project', async (req, res) => {
 app.post('/api/fix-project-issues', async (req, res) => {
   try {
     const { files, issues, techStack } = req.body;
-    
+
     const systemPrompt = `You are an expert developer. Fix the identified issues in the provided files. Return the corrected files as a JSON object with the same structure.`;
-    
-    const userPrompt = `Fix these issues in the project files:
-    Issues: ${issues.join(', ')}
-    
+
+    const userPrompt = `Fix these issues in the project files:Issues: ${issues.join(', ')}
+
     Current Files:
     ${JSON.stringify(files, null, 2)}
-    
+
     Return the corrected files as JSON.`;
-    
+
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
@@ -884,14 +881,14 @@ app.post('/api/fix-project-issues', async (req, res) => {
     });
 
     const fixedFilesText = response.data.choices[0].message.content;
-    
+
     let fixedFiles;
     try {
       fixedFiles = JSON.parse(fixedFilesText);
     } catch (e) {
       fixedFiles = files; // Return original if parsing fails
     }
-    
+
     res.json({
       success: true,
       files: fixedFiles
