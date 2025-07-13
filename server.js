@@ -195,18 +195,45 @@ app.post('/api/chat', async (req, res) => {
 // Generate and commit code to repository
 app.post('/api/repo/generate-code', async (req, res) => {
   try {
-    const { owner, repo, instruction, language, fileName } = req.body;
+    const { owner, repo, instruction, language = 'javascript', fileName = 'index.html' } = req.body;
     
-    const systemPrompt = `You are an expert ${language} programmer. Generate complete, production-ready code based on the user's instruction. Return only the code without explanations or markdown formatting.`;
+    // Determine appropriate file type and content based on instruction
+    let finalFileName = fileName;
+    let fileLanguage = language;
+    
+    if (instruction.toLowerCase().includes('html') || instruction.toLowerCase().includes('website') || instruction.toLowerCase().includes('page')) {
+      finalFileName = 'index.html';
+      fileLanguage = 'html';
+    } else if (instruction.toLowerCase().includes('python')) {
+      finalFileName = 'main.py';
+      fileLanguage = 'python';
+    } else if (instruction.toLowerCase().includes('react')) {
+      finalFileName = 'App.js';
+      fileLanguage = 'javascript';
+    } else if (instruction.toLowerCase().includes('api') || instruction.toLowerCase().includes('server')) {
+      finalFileName = 'server.js';
+      fileLanguage = 'javascript';
+    } else if (instruction.toLowerCase().includes('calculator') || instruction.toLowerCase().includes('app')) {
+      finalFileName = 'index.html';
+      fileLanguage = 'html';
+    }
+    
+    const systemPrompt = `You are an expert ${fileLanguage} programmer. Generate complete, production-ready code based on the user's instruction. 
+
+If creating HTML: Include HTML, CSS, and JavaScript all in one file with proper structure, styling, and functionality.
+If creating Python: Write clean, well-commented Python code with proper error handling.
+If creating JavaScript: Write modern ES6+ JavaScript with proper structure.
+
+Return ONLY the complete code without any explanations, markdown formatting, or code blocks.`;
     
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: instruction }
+        { role: 'user', content: `Create a ${fileLanguage} file for: ${instruction}. Make it fully functional, responsive, and production-ready.` }
       ],
       temperature: 0.1,
-      max_tokens: 3000
+      max_tokens: 4000
     }, {
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -214,26 +241,55 @@ app.post('/api/repo/generate-code', async (req, res) => {
       }
     });
 
-    const generatedCode = response.data.choices[0].message.content;
+    let generatedCode = response.data.choices[0].message.content;
+    
+    // Clean the code (remove any markdown formatting that might slip through)
+    generatedCode = generatedCode.replace(/```[a-zA-Z]*\n/g, '').replace(/```/g, '').trim();
+    
+    // Check if file already exists to get SHA
+    let sha = null;
+    try {
+      const existingFile = await octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path: finalFileName
+      });
+      sha = existingFile.data.sha;
+    } catch (error) {
+      // File doesn't exist, that's fine
+    }
     
     // Upload to GitHub
     const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
       owner,
       repo,
-      path: fileName,
-      message: `Add ${fileName} - AI generated code`,
-      content: Buffer.from(generatedCode).toString('base64')
+      path: finalFileName,
+      message: `${sha ? 'Update' : 'Add'} ${finalFileName} - AI generated code`,
+      content: Buffer.from(generatedCode).toString('base64'),
+      ...(sha && { sha })
     });
+    
+    console.log(`Successfully ${sha ? 'updated' : 'created'} ${finalFileName} in ${owner}/${repo}`);
     
     res.json({
       success: true,
-      code: generatedCode,
-      fileName: fileName,
-      commitUrl: uploadResponse.data.commit.html_url
+      fileName: finalFileName,
+      commitUrl: uploadResponse.data.commit.html_url,
+      action: sha ? 'updated' : 'created'
     });
   } catch (error) {
-    console.error('Code generation error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
+    console.error('Code generation error:', error.response?.data || error.message);
+    
+    let errorMessage = error.message;
+    if (error.response?.status === 404) {
+      errorMessage = 'Repository not found or no write access';
+    } else if (error.response?.status === 403) {
+      errorMessage = 'Insufficient permissions to write to repository';
+    } else if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    }
+    
+    res.status(500).json({ success: false, error: errorMessage });
   }
 });
 
