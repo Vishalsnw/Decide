@@ -1,19 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Code Studio - Replit Clone</title>
+    <title>AI Code Studio</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/monokai.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/htmlmixed/htmlmixed.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/css/css.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/xml/xml.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -23,450 +14,391 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #1e1e1e;
-            color: #d4d4d4;
+            background: #0f1419;
+            color: #e6e6e6;
             height: 100vh;
             overflow: hidden;
         }
 
         .app-container {
             display: flex;
-            flex-direction: column;
             height: 100vh;
-        }
-
-        /* Header */
-        .header {
-            background: #2d2d30;
-            border-bottom: 1px solid #3e3e42;
-            padding: 8px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .logo {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #569cd6;
-        }
-
-        .project-name {
-            color: #d4d4d4;
-            font-weight: 500;
-        }
-
-        .header-center {
-            display: flex;
-            gap: 10px;
-        }
-
-        .header-right {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .btn {
-            background: #0e639c;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: background 0.2s;
-        }
-
-        .btn:hover {
-            background: #1177bb;
-        }
-
-        .btn.btn-success {
-            background: #0f7b0f;
-        }
-
-        .btn.btn-success:hover {
-            background: #0f7b0f;
-        }
-
-        .btn:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            display: flex;
-            overflow: hidden;
         }
 
         /* Sidebar */
         .sidebar {
-            width: 300px;
-            background: #252526;
-            border-right: 1px solid #3e3e42;
+            width: 320px;
+            background: #1a1f2e;
+            border-right: 1px solid #2d3748;
             display: flex;
             flex-direction: column;
         }
 
-        .sidebar-tabs {
-            display: flex;
-            border-bottom: 1px solid #3e3e42;
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #2d3748;
         }
 
-        .sidebar-tab {
-            flex: 1;
-            padding: 12px 8px;
-            text-align: center;
-            cursor: pointer;
-            background: #2d2d30;
+        .logo {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #4299e1;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #a0aec0;
+        }
+
+        .repo-section {
+            padding: 20px;
+            border-bottom: 1px solid #2d3748;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e6e6e6;
+            margin-bottom: 12px;
+        }
+
+        .import-btn {
+            width: 100%;
+            background: #4299e1;
+            color: white;
             border: none;
-            color: #d4d4d4;
-            font-size: 12px;
-        }
-
-        .sidebar-tab.active {
-            background: #252526;
-            border-bottom: 2px solid #0e639c;
-        }
-
-        .sidebar-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-        }
-
-        /* File Explorer */
-        .file-explorer {
-            display: none;
-        }
-
-        .file-explorer.active {
-            display: block;
-        }
-
-        .file-item {
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
             display: flex;
             align-items: center;
-            padding: 4px 8px;
-            cursor: pointer;
-            border-radius: 4px;
-            margin-bottom: 2px;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.2s;
         }
 
-        .file-item:hover {
-            background: #2a2d2e;
+        .import-btn:hover {
+            background: #3182ce;
         }
 
-        .file-item.active {
-            background: #0e639c;
+        .import-btn:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
         }
 
-        .file-item i {
-            margin-right: 8px;
-            width: 16px;
-        }
-
-        /* Templates */
-        .templates-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-        }
-
-        .template-card {
-            background: #2d2d30;
-            border: 1px solid #3e3e42;
-            border-radius: 8px;
+        .repo-info {
+            background: #2d3748;
             padding: 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+
+        .repo-name {
+            font-weight: 600;
+            color: #4299e1;
+            margin-bottom: 4px;
+        }
+
+        .repo-desc {
+            font-size: 13px;
+            color: #a0aec0;
+            margin-bottom: 8px;
+        }
+
+        .repo-lang {
+            font-size: 12px;
+            color: #68d391;
+        }
+
+        .repos-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 12px;
+        }
+
+        .repo-item {
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
             cursor: pointer;
             transition: all 0.2s;
         }
 
-        .template-card:hover {
-            border-color: #0e639c;
-            transform: translateY(-2px);
+        .repo-item:hover {
+            border-color: #4299e1;
+            background: #374151;
         }
 
-        .template-name {
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #569cd6;
+        .repo-item.selected {
+            border-color: #4299e1;
+            background: #374151;
         }
 
-        .template-desc {
-            font-size: 14px;
-            color: #cccccc;
-            margin-bottom: 8px;
-        }
-
-        .template-tech {
-            font-size: 12px;
-            color: #999;
-        }
-
-        /* Editor Area */
-        .editor-area {
+        /* Main Chat Area */
+        .chat-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-        }
-
-        /* Tabs */
-        .editor-tabs {
-            display: flex;
-            background: #2d2d30;
-            border-bottom: 1px solid #3e3e42;
-            overflow-x: auto;
-        }
-
-        .editor-tab {
-            display: flex;
-            align-items: center;
-            padding: 8px 16px;
-            background: #3c3c3c;
-            border: none;
-            color: #d4d4d4;
-            cursor: pointer;
-            white-space: nowrap;
-            border-right: 1px solid #3e3e42;
-        }
-
-        .editor-tab.active {
-            background: #1e1e1e;
-        }
-
-        .editor-tab .close-tab {
-            margin-left: 8px;
-            background: none;
-            border: none;
-            color: #999;
-            cursor: pointer;
-            padding: 2px;
-        }
-
-        .editor-tab .close-tab:hover {
-            color: #fff;
-        }
-
-        /* Editor */
-        .editor-container {
-            flex: 1;
-            position: relative;
-        }
-
-        .CodeMirror {
-            height: 100%;
-            font-size: 14px;
-        }
-
-        /* Preview Area */
-        .preview-area {
-            width: 50%;
-            border-left: 1px solid #3e3e42;
-            background: white;
-            display: none;
-        }
-
-        .preview-area.active {
-            display: block;
-        }
-
-        .preview-header {
-            background: #2d2d30;
-            padding: 8px 16px;
-            border-bottom: 1px solid #3e3e42;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .preview-url {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            border: 1px solid #3e3e42;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            flex: 1;
-            margin: 0 8px;
-        }
-
-        .preview-iframe {
-            width: 100%;
-            height: calc(100% - 40px);
-            border: none;
-        }
-
-        /* AI Chat */
-        .ai-chat {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 350px;
-            height: 400px;
-            background: #252526;
-            border: 1px solid #3e3e42;
-            border-radius: 8px;
-            display: none;
-            flex-direction: column;
-            z-index: 1000;
-        }
-
-        .ai-chat.active {
-            display: flex;
+            background: #0f1419;
         }
 
         .chat-header {
-            background: #2d2d30;
-            padding: 12px;
-            border-bottom: 1px solid #3e3e42;
+            background: #1a1f2e;
+            padding: 16px 24px;
+            border-bottom: 1px solid #2d3748;
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+
+        .chat-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #e6e6e6;
+        }
+
+        .status-badge {
+            background: #48bb78;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-badge.disconnected {
+            background: #f56565;
         }
 
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            padding: 12px;
-        }
-
-        .chat-message {
-            margin-bottom: 12px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-
-        .chat-message.user {
-            background: #0e639c;
-            color: white;
-            margin-left: 20%;
-        }
-
-        .chat-message.ai {
-            background: #2d2d30;
-            color: #d4d4d4;
-            margin-right: 20%;
-        }
-
-        .chat-input-container {
-            padding: 12px;
-            border-top: 1px solid #3e3e42;
+            padding: 24px;
             display: flex;
-            gap: 8px;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 16px 20px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .message.user {
+            background: #4299e1;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.ai {
+            background: #2d3748;
+            color: #e6e6e6;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #4a5568;
+        }
+
+        .message.system {
+            background: #2b6cb0;
+            color: white;
+            align-self: center;
+            font-size: 13px;
+            padding: 12px 16px;
+            border-radius: 20px;
+        }
+
+        .typing-indicator {
+            display: none;
+            align-self: flex-start;
+            background: #2d3748;
+            padding: 16px 20px;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #4a5568;
+        }
+
+        .typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #a0aec0;
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-10px); opacity: 1; }
+        }
+
+        .chat-input-area {
+            background: #1a1f2e;
+            border-top: 1px solid #2d3748;
+            padding: 20px 24px;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
         }
 
         .chat-input {
             flex: 1;
-            background: #1e1e1e;
-            border: 1px solid #3e3e42;
-            color: #d4d4d4;
-            padding: 8px 12px;
-            border-radius: 4px;
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            color: #e6e6e6;
+            padding: 12px 16px;
+            border-radius: 12px;
             font-size: 14px;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            font-family: inherit;
         }
 
-        /* Project Creation Modal */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: none;
+        .chat-input:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+
+        .chat-input::placeholder {
+            color: #a0aec0;
+        }
+
+        .send-btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            background: #3182ce;
+        }
+
+        .send-btn:disabled {
+            background: #4a5568;
+            cursor: not-allowed;
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 2000;
+            height: 100%;
+            text-align: center;
+            padding: 40px;
         }
 
-        .modal.active {
-            display: flex;
+        .welcome-icon {
+            font-size: 64px;
+            color: #4299e1;
+            margin-bottom: 24px;
         }
 
-        .modal-content {
-            background: #252526;
-            border: 1px solid #3e3e42;
-            border-radius: 8px;
-            padding: 24px;
-            width: 90%;
+        .welcome-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #e6e6e6;
+        }
+
+        .welcome-desc {
+            font-size: 16px;
+            color: #a0aec0;
+            margin-bottom: 32px;
+            max-width: 500px;
+            line-height: 1.6;
+        }
+
+        .welcome-suggestions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
             max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
+            width: 100%;
         }
 
-        .modal-header {
-            margin-bottom: 20px;
+        .suggestion-card {
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
-        .modal-title {
-            font-size: 1.5rem;
-            margin-bottom: 8px;
-            color: #569cd6;
+        .suggestion-card:hover {
+            border-color: #4299e1;
+            transform: translateY(-2px);
         }
 
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
+        .suggestion-title {
             font-weight: 600;
-            color: #d4d4d4;
+            margin-bottom: 8px;
+            color: #e6e6e6;
         }
 
-        .form-input {
-            width: 100%;
-            background: #1e1e1e;
-            border: 1px solid #3e3e42;
-            color: #d4d4d4;
-            padding: 8px 12px;
-            border-radius: 4px;
+        .suggestion-desc {
             font-size: 14px;
+            color: #a0aec0;
         }
 
-        .form-textarea {
-            min-height: 80px;
-            resize: vertical;
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: absolute;
+                left: -100%;
+                transition: left 0.3s;
+                z-index: 1000;
+            }
+
+            .sidebar.mobile-open {
+                left: 0;
+            }
+
+            .chat-header {
+                padding-left: 60px;
+            }
+
+            .mobile-menu-btn {
+                position: absolute;
+                left: 16px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: none;
+                border: none;
+                color: #e6e6e6;
+                font-size: 20px;
+                cursor: pointer;
+            }
         }
 
-        .form-select {
-            width: 100%;
-            background: #1e1e1e;
-            border: 1px solid #3e3e42;
-            color: #d4d4d4;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .modal-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 20px;
-        }
-
-        .btn-cancel {
-            background: #6c757d;
-        }
-
-        /* Loading States */
         .loading {
             display: inline-block;
             width: 16px;
@@ -480,890 +412,347 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-
-        /* Console */
-        .console {
-            height: 200px;
-            background: #1e1e1e;
-            border-top: 1px solid #3e3e42;
-            display: none;
-            flex-direction: column;
-        }
-
-        .console.active {
-            display: flex;
-        }
-
-        .console-header {
-            background: #2d2d30;
-            padding: 8px 16px;
-            border-bottom: 1px solid #3e3e42;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .console-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 12px;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            line-height: 1.4;
-        }
-
-        .console-line {
-            margin-bottom: 4px;
-        }
-
-        .console-line.error {
-            color: #f14c4c;
-        }
-
-        .console-line.success {
-            color: #89d185;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                position: absolute;
-                left: -100%;
-                transition: left 0.3s;
-                z-index: 100;
-            }
-
-            .sidebar.mobile-open {
-                left: 0;
-            }
-
-            .preview-area {
-                display: none !important;
-            }
-
-            .ai-chat {
-                width: 90%;
-                height: 60%;
-                bottom: 10px;
-                right: 5%;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
-        <div class="header">
-            <div class="header-left">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
                 <div class="logo">
-                    <i class="fas fa-cube"></i> AI Code Studio
+                    <i class="fas fa-robot"></i> AI Code Studio
                 </div>
-                <div class="project-name" id="projectName">Untitled Project</div>
+                <div class="subtitle">Your AI coding companion</div>
             </div>
-            
-            <div class="header-center">
-                <button class="btn" id="runBtn">
-                    <i class="fas fa-play"></i> Run
+
+            <div class="repo-section">
+                <div class="section-title">Repository</div>
+                <button class="import-btn" id="importRepoBtn">
+                    <i class="fab fa-github"></i>
+                    Import from GitHub
                 </button>
-                <button class="btn" id="stopBtn" style="display: none;">
-                    <i class="fas fa-stop"></i> Stop
-                </button>
-            </div>
-            
-            <div class="header-right">
-                <button class="btn" id="newProjectBtn">
-                    <i class="fas fa-plus"></i> New
-                </button>
-                <button class="btn" id="saveBtn">
-                    <i class="fas fa-save"></i> Save
-                </button>
-                <button class="btn" id="shareBtn">
-                    <i class="fas fa-share"></i> Share
-                </button>
-                <button class="btn" id="aiChatToggle">
-                    <i class="fas fa-robot"></i> AI
-                </button>
+
+                <div id="selectedRepo" style="display: none;"></div>
+                <div id="reposList" class="repos-list"></div>
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- Sidebar -->
-            <div class="sidebar" id="sidebar">
-                <div class="sidebar-tabs">
-                    <button class="sidebar-tab active" data-tab="files">
-                        <i class="fas fa-folder"></i><br>Files
-                    </button>
-                    <button class="sidebar-tab" data-tab="templates">
-                        <i class="fas fa-layer-group"></i><br>Templates
-                    </button>
-                    <button class="sidebar-tab" data-tab="github">
-                        <i class="fab fa-github"></i><br>GitHub
-                    </button>
-                </div>
-                
-                <div class="sidebar-content">
-                    <!-- File Explorer -->
-                    <div class="file-explorer active" id="filesTab">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-                            <h3 style="font-size: 14px; color: #569cd6;">Files</h3>
-                            <button class="btn" style="padding: 4px 8px; font-size: 12px;" id="newFileBtn">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                        <div id="fileList"></div>
-                    </div>
-
-                    <!-- Templates -->
-                    <div class="file-explorer" id="templatesTab">
-                        <h3 style="font-size: 14px; color: #569cd6; margin-bottom: 12px;">Project Templates</h3>
-                        <div class="templates-grid" id="templatesList"></div>
-                    </div>
-
-                    <!-- GitHub -->
-                    <div class="file-explorer" id="githubTab">
-                        <h3 style="font-size: 14px; color: #569cd6; margin-bottom: 12px;">GitHub Integration</h3>
-                        <button class="btn" style="width: 100%; margin-bottom: 12px;" id="loadGithubRepos">
-                            <i class="fas fa-download"></i> Load Repositories
-                        </button>
-                        <div id="githubReposList"></div>
-                    </div>
-                </div>
+        <!-- Main Chat Area -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <button class="mobile-menu-btn" id="mobileMenuBtn" style="display: none;">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="chat-title">AI Assistant</div>
+                <div class="status-badge" id="statusBadge">Ready</div>
             </div>
 
-            <!-- Editor Area -->
-            <div class="editor-area">
-                <div class="editor-tabs" id="editorTabs"></div>
-                
-                <div style="display: flex; flex: 1;">
-                    <div class="editor-container" id="editorContainer">
-                        <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #999;">
-                            <div style="text-align: center;">
-                                <i class="fas fa-code" style="font-size: 48px; margin-bottom: 16px;"></i>
-                                <p>Select a file to start editing</p>
-                            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <div class="welcome-title">Welcome to AI Code Studio</div>
+                    <div class="welcome-desc">
+                        Import a repository from GitHub and start chatting with AI to build, modify, or fix your code. 
+                        Just describe what you want to do in plain English.
+                    </div>
+                    <div class="welcome-suggestions">
+                        <div class="suggestion-card" onclick="sendSuggestion('Create a responsive landing page with modern design')">
+                            <div class="suggestion-title">Build a Website</div>
+                            <div class="suggestion-desc">Create responsive web pages with modern design</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Add user authentication with login and registration')">
+                            <div class="suggestion-title">Add Authentication</div>
+                            <div class="suggestion-desc">Implement user login and registration system</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Create a REST API with database integration')">
+                            <div class="suggestion-title">Build an API</div>
+                            <div class="suggestion-desc">Create backend APIs with database support</div>
+                        </div>
+                        <div class="suggestion-card" onclick="sendSuggestion('Fix bugs and optimize performance in my code')">
+                            <div class="suggestion-title">Debug & Optimize</div>
+                            <div class="suggestion-desc">Find and fix issues, improve performance</div>
                         </div>
                     </div>
-                    
-                    <!-- Preview Area -->
-                    <div class="preview-area" id="previewArea">
-                        <div class="preview-header">
-                            <span>Preview</span>
-                            <input type="text" class="preview-url" id="previewUrl" value="http://localhost:3000" readonly>
-                            <button class="btn" style="padding: 4px 8px;" id="refreshPreview">
-                                <i class="fas fa-refresh"></i>
-                            </button>
-                        </div>
-                        <iframe class="preview-iframe" id="previewIframe"></iframe>
-                    </div>
                 </div>
 
-                <!-- Console -->
-                <div class="console" id="console">
-                    <div class="console-header">
-                        <span>Console</span>
-                        <button class="btn" style="padding: 4px 8px;" id="clearConsole">
-                            <i class="fas fa-trash"></i> Clear
-                        </button>
+                <div class="typing-indicator" id="typingIndicator">
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
                     </div>
-                    <div class="console-content" id="consoleContent"></div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- AI Chat -->
-    <div class="ai-chat" id="aiChat">
-        <div class="chat-header">
-            <span><i class="fas fa-robot"></i> AI Assistant</span>
-            <button style="background: none; border: none; color: #999; cursor: pointer;" id="closeChatBtn">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="chat-messages" id="chatMessages">
-            <div class="chat-message ai">
-                Hi! I'm your AI coding assistant. I can help you create projects, write code, fix bugs, and answer questions. What would you like to build today?
-            </div>
-        </div>
-        <div class="chat-input-container">
-            <input type="text" class="chat-input" id="chatInput" placeholder="Ask me anything...">
-            <button class="btn" id="sendChatBtn">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- Project Creation Modal -->
-    <div class="modal" id="projectModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Create New Project</h2>
-                <p style="color: #cccccc;">Describe your project idea and I'll generate all the necessary files.</p>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Project Name</label>
-                <input type="text" class="form-input" id="modalProjectName" placeholder="my-awesome-app">
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Project Description</label>
-                <textarea class="form-input form-textarea" id="modalProjectDesc" placeholder="Describe what your app should do..."></textarea>
-            </div>
-            
-            <div class="form-group">
-                <label class="form-label">Technology Stack</label>
-                <select class="form-select" id="modalTechStack">
-                    <option value="html-css-js">HTML + CSS + JavaScript</option>
-                    <option value="react">React App</option>
-                    <option value="vue">Vue.js App</option>
-                    <option value="node-express">Node.js + Express</option>
-                    <option value="python-flask">Python + Flask</option>
-                    <option value="python-django">Python + Django</option>
-                    <option value="nextjs">Next.js</option>
-                    <option value="svelte">Svelte</option>
-                </select>
-            </div>
-            
-            <div class="modal-actions">
-                <button class="btn btn-cancel" id="cancelModalBtn">Cancel</button>
-                <button class="btn btn-success" id="createProjectBtn">
-                    <i class="fas fa-magic"></i> Generate Project
-                </button>
+            <div class="chat-input-area">
+                <div class="input-container">
+                    <textarea 
+                        class="chat-input" 
+                        id="chatInput" 
+                        placeholder="Describe what you want to build or modify..."
+                        rows="1"
+                    ></textarea>
+                    <button class="send-btn" id="sendBtn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Global state
-        let currentProject = {
-            name: 'Untitled Project',
-            files: {},
-            activeFile: null,
-            unsavedChanges: false
-        };
-        
-        let editors = new Map();
+        let selectedRepo = null;
+        let conversationActive = false;
         let sessionId = 'session_' + Date.now();
 
-        // Project templates
-        const projectTemplates = [
-            {
-                name: 'HTML Website',
-                description: 'Simple HTML, CSS, and JavaScript website',
-                tech: 'HTML + CSS + JS',
-                files: {
-                    'index.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>My Website</title>\n    <link rel="stylesheet" href="style.css">\n</head>\n<body>\n    <h1>Hello World!</h1>\n    <script src="script.js"></script>\n</body>\n</html>',
-                    'style.css': 'body {\n    font-family: Arial, sans-serif;\n    margin: 0;\n    padding: 20px;\n    background: #f0f0f0;\n}\n\nh1 {\n    color: #333;\n    text-align: center;\n}',
-                    'script.js': 'console.log("Hello World!");\n\ndocument.addEventListener("DOMContentLoaded", function() {\n    console.log("Page loaded!");\n});'
-                }
-            },
-            {
-                name: 'React App',
-                description: 'Modern React application with components',
-                tech: 'React + JSX',
-                files: {
-                    'index.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>React App</title>\n</head>\n<body>\n    <div id="root"></div>\n    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>\n    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>\n    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>\n    <script type="text/babel" src="app.js"></script>\n</body>\n</html>',
-                    'app.js': 'const { useState } = React;\n\nfunction App() {\n    const [count, setCount] = useState(0);\n\n    return (\n        <div>\n            <h1>React Counter App</h1>\n            <p>Count: {count}</p>\n            <button onClick={() => setCount(count + 1)}>+</button>\n            <button onClick={() => setCount(count - 1)}>-</button>\n        </div>\n    );\n}\n\nReactDOM.render(<App />, document.getElementById("root"));',
-                    'style.css': 'body {\n    font-family: Arial, sans-serif;\n    margin: 0;\n    padding: 20px;\n    background: #f0f2f5;\n}\n\nbutton {\n    margin: 5px;\n    padding: 10px 15px;\n    font-size: 16px;\n    cursor: pointer;\n}'
-                }
-            },
-            {
-                name: 'Python Flask',
-                description: 'Flask web application with routes',
-                tech: 'Python + Flask',
-                files: {
-                    'app.py': 'from flask import Flask, render_template\n\napp = Flask(__name__)\n\n@app.route("/")\ndef home():\n    return render_template("index.html")\n\n@app.route("/api/hello")\ndef api_hello():\n    return {"message": "Hello from Flask!"}\n\nif __name__ == "__main__":\n    app.run(debug=True, host="0.0.0.0", port=5000)',
-                    'templates/index.html': '<!DOCTYPE html>\n<html>\n<head>\n    <title>Flask App</title>\n</head>\n<body>\n    <h1>Flask Application</h1>\n    <p>Welcome to your Flask app!</p>\n    <button onclick="fetchHello()">Test API</button>\n    <div id="result"></div>\n    <script>\n        function fetchHello() {\n            fetch("/api/hello")\n                .then(r => r.json())\n                .then(data => {\n                    document.getElementById("result").innerHTML = data.message;\n                });\n        }\n    </script>\n</body>\n</html>',
-                    'requirements.txt': 'Flask==2.3.3'
-                }
-            }
-        ];
-
-        // Initialize app
+        // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
             setupEventListeners();
+            autoResizeTextarea();
         });
 
-        function initializeApp() {
-            renderTemplates();
-            updateFileList();
-            updateProjectName();
-        }
-
         function setupEventListeners() {
-            // Sidebar tabs
-            document.querySelectorAll('.sidebar-tab').forEach(tab => {
-                tab.addEventListener('click', () => switchSidebarTab(tab.dataset.tab));
-            });
+            // Import repository
+            document.getElementById('importRepoBtn').addEventListener('click', importRepository);
 
-            // Header buttons
-            document.getElementById('newProjectBtn').addEventListener('click', () => {
-                document.getElementById('projectModal').classList.add('active');
-            });
-
-            document.getElementById('runBtn').addEventListener('click', runProject);
-            document.getElementById('saveBtn').addEventListener('click', saveProject);
-            document.getElementById('shareBtn').addEventListener('click', shareProject);
-            document.getElementById('aiChatToggle').addEventListener('click', toggleAIChat);
-
-            // Modal
-            document.getElementById('cancelModalBtn').addEventListener('click', () => {
-                document.getElementById('projectModal').classList.remove('active');
-            });
-            document.getElementById('createProjectBtn').addEventListener('click', createProjectFromModal);
-
-            // File management
-            document.getElementById('newFileBtn').addEventListener('click', createNewFile);
-
-            // AI Chat
-            document.getElementById('closeChatBtn').addEventListener('click', () => {
-                document.getElementById('aiChat').classList.remove('active');
-            });
-            document.getElementById('sendChatBtn').addEventListener('click', sendChatMessage);
+            // Send message
+            document.getElementById('sendBtn').addEventListener('click', sendMessage);
             document.getElementById('chatInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') sendChatMessage();
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
             });
 
-            // Console
-            document.getElementById('clearConsole').addEventListener('click', () => {
-                document.getElementById('consoleContent').innerHTML = '';
-            });
+            // Mobile menu
+            document.getElementById('mobileMenuBtn').addEventListener('click', toggleMobileMenu);
 
-            // GitHub
-            document.getElementById('loadGithubRepos').addEventListener('click', loadGitHubRepos);
+            // Auto-resize textarea
+            document.getElementById('chatInput').addEventListener('input', autoResizeTextarea);
         }
 
-        function switchSidebarTab(tabName) {
-            document.querySelectorAll('.sidebar-tab').forEach(tab => tab.classList.remove('active'));
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-            
-            document.querySelectorAll('.file-explorer').forEach(content => content.classList.remove('active'));
-            document.getElementById(tabName + 'Tab').classList.add('active');
-        }
-
-        function renderTemplates() {
-            const container = document.getElementById('templatesList');
-            container.innerHTML = '';
-            
-            projectTemplates.forEach(template => {
-                const card = document.createElement('div');
-                card.className = 'template-card';
-                card.innerHTML = `
-                    <div class="template-name">${template.name}</div>
-                    <div class="template-desc">${template.description}</div>
-                    <div class="template-tech">${template.tech}</div>
-                `;
-                card.addEventListener('click', () => createProjectFromTemplate(template));
-                container.appendChild(card);
-            });
-        }
-
-        function createProjectFromTemplate(template) {
-            currentProject = {
-                name: template.name,
-                files: { ...template.files },
-                activeFile: null,
-                unsavedChanges: false
-            };
-            
-            updateProjectName();
-            updateFileList();
-            addChatMessage('ai', `Created "${template.name}" project! You can now edit the files and run your application.`);
-            switchSidebarTab('files');
-        }
-
-        async function createProjectFromModal() {
-            const name = document.getElementById('modalProjectName').value;
-            const description = document.getElementById('modalProjectDesc').value;
-            const techStack = document.getElementById('modalTechStack').value;
-            
-            if (!name || !description) {
-                alert('Please provide project name and description');
-                return;
-            }
-            
-            const btn = document.getElementById('createProjectBtn');
+        async function importRepository() {
+            const btn = document.getElementById('importRepoBtn');
             btn.disabled = true;
-            btn.innerHTML = '<div class="loading"></div> Generating...';
-            
+            btn.innerHTML = '<div class="loading"></div> Loading repositories...';
+
             try {
-                const response = await fetch('/api/generate-project-files', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        plan: description,
-                        projectName: name,
-                        techStack: techStack
-                    })
-                });
-                
+                const response = await fetch('/api/github/repos');
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    currentProject = {
-                        name: name,
-                        files: data.files,
-                        activeFile: null,
-                        unsavedChanges: false
-                    };
-                    
-                    updateProjectName();
-                    updateFileList();
-                    document.getElementById('projectModal').classList.remove('active');
-                    addChatMessage('ai', `Successfully generated "${name}" project! I've created ${Object.keys(data.files).length} files. You can now edit them and run your application.`);
-                    switchSidebarTab('files');
+                    displayRepositories(data.repos);
                 } else {
-                    alert('Failed to generate project: ' + data.error);
+                    addMessage('system', 'Failed to load repositories: ' + data.error);
                 }
             } catch (error) {
-                alert('Error: ' + error.message);
+                addMessage('system', 'Error: ' + error.message);
             }
-            
+
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-magic"></i> Generate Project';
+            btn.innerHTML = '<i class="fab fa-github"></i> Import from GitHub';
         }
 
-        function updateProjectName() {
-            document.getElementById('projectName').textContent = currentProject.name;
-        }
-
-        function updateFileList() {
-            const container = document.getElementById('fileList');
+        function displayRepositories(repos) {
+            const container = document.getElementById('reposList');
             container.innerHTML = '';
-            
-            Object.keys(currentProject.files).forEach(fileName => {
-                const fileItem = document.createElement('div');
-                fileItem.className = 'file-item';
-                if (fileName === currentProject.activeFile) {
-                    fileItem.classList.add('active');
-                }
-                
-                const icon = getFileIcon(fileName);
-                fileItem.innerHTML = `
-                    <i class="${icon}"></i>
-                    <span>${fileName}</span>
+
+            repos.forEach(repo => {
+                const repoItem = document.createElement('div');
+                repoItem.className = 'repo-item';
+                repoItem.innerHTML = `
+                    <div class="repo-name">${repo.name}</div>
+                    <div class="repo-desc">${repo.description || 'No description'}</div>
+                    <div class="repo-lang">${repo.language || 'Unknown language'}</div>
                 `;
-                
-                fileItem.addEventListener('click', () => openFile(fileName));
-                container.appendChild(fileItem);
+                repoItem.addEventListener('click', () => selectRepository(repo, repoItem));
+                container.appendChild(repoItem);
             });
         }
 
-        function getFileIcon(fileName) {
-            const ext = fileName.split('.').pop().toLowerCase();
-            const iconMap = {
-                'html': 'fab fa-html5',
-                'css': 'fab fa-css3',
-                'js': 'fab fa-js',
-                'py': 'fab fa-python',
-                'json': 'fas fa-code',
-                'md': 'fab fa-markdown',
-                'txt': 'fas fa-file-alt'
-            };
-            return iconMap[ext] || 'fas fa-file';
-        }
+        async function selectRepository(repo, element) {
+            // Update UI
+            document.querySelectorAll('.repo-item').forEach(item => item.classList.remove('selected'));
+            element.classList.add('selected');
 
-        function openFile(fileName) {
-            if (currentProject.activeFile === fileName) return;
-            
-            currentProject.activeFile = fileName;
-            updateFileList();
-            
-            // Create editor tab
-            createEditorTab(fileName);
-            
-            // Create or show editor
-            showEditor(fileName);
-            
-            // Show preview for HTML files
-            if (fileName.endsWith('.html')) {
-                showPreview();
-            }
-        }
+            selectedRepo = repo;
 
-        function createEditorTab(fileName) {
-            const tabsContainer = document.getElementById('editorTabs');
-            
-            // Check if tab already exists
-            if (document.querySelector(`[data-file="${fileName}"]`)) {
-                // Just activate it
-                document.querySelectorAll('.editor-tab').forEach(tab => tab.classList.remove('active'));
-                document.querySelector(`[data-file="${fileName}"]`).classList.add('active');
-                return;
-            }
-            
-            const tab = document.createElement('button');
-            tab.className = 'editor-tab active';
-            tab.dataset.file = fileName;
-            tab.innerHTML = `
-                <span>${fileName}</span>
-                <button class="close-tab" onclick="closeTab('${fileName}')">
-                    <i class="fas fa-times"></i>
-                </button>
+            // Show selected repo info
+            const selectedRepoDiv = document.getElementById('selectedRepo');
+            selectedRepoDiv.style.display = 'block';
+            selectedRepoDiv.innerHTML = `
+                <div class="repo-info">
+                    <div class="repo-name">${repo.name}</div>
+                    <div class="repo-desc">${repo.description || 'No description'}</div>
+                    <div class="repo-lang">Language: ${repo.language || 'Unknown'}</div>
+                </div>
             `;
-            
-            // Deactivate other tabs
-            document.querySelectorAll('.editor-tab').forEach(tab => tab.classList.remove('active'));
-            
-            tab.addEventListener('click', () => openFile(fileName));
-            tabsContainer.appendChild(tab);
+
+            // Hide welcome screen and show initial message
+            document.getElementById('welcomeScreen').style.display = 'none';
+
+            addMessage('system', `Connected to repository: ${repo.name}`);
+            addMessage('ai', `Great! I'm now connected to your repository "${repo.name}". You can ask me to modify files, add features, fix bugs, or create new functionality. What would you like to do?`);
+
+            updateStatus('Connected');
         }
 
-        function closeTab(fileName) {
-            const tab = document.querySelector(`[data-file="${fileName}"]`);
-            if (tab) {
-                tab.remove();
-            }
-            
-            if (editors.has(fileName)) {
-                editors.delete(fileName);
-            }
-            
-            if (currentProject.activeFile === fileName) {
-                currentProject.activeFile = null;
-                const remainingTabs = document.querySelectorAll('.editor-tab');
-                if (remainingTabs.length > 0) {
-                    const nextFile = remainingTabs[0].dataset.file;
-                    openFile(nextFile);
-                } else {
-                    // Show empty state
-                    document.getElementById('editorContainer').innerHTML = `
-                        <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #999;">
-                            <div style="text-align: center;">
-                                <i class="fas fa-code" style="font-size: 48px; margin-bottom: 16px;"></i>
-                                <p>Select a file to start editing</p>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-        }
-
-        function showEditor(fileName) {
-            const container = document.getElementById('editorContainer');
-            
-            if (editors.has(fileName)) {
-                // Show existing editor
-                container.innerHTML = '';
-                container.appendChild(editors.get(fileName).getWrapperElement());
-                editors.get(fileName).refresh();
-                return;
-            }
-            
-            // Create new editor
-            container.innerHTML = '<textarea id="codeEditor"></textarea>';
-            const textarea = document.getElementById('codeEditor');
-            
-            const mode = getEditorMode(fileName);
-            const editor = CodeMirror.fromTextArea(textarea, {
-                mode: mode,
-                theme: 'monokai',
-                lineNumbers: true,
-                autoCloseBrackets: true,
-                matchBrackets: true,
-                indentUnit: 2,
-                tabSize: 2,
-                lineWrapping: true
-            });
-            
-            editor.setValue(currentProject.files[fileName] || '');
-            
-            editor.on('change', () => {
-                currentProject.files[fileName] = editor.getValue();
-                currentProject.unsavedChanges = true;
-                
-                // Auto-update preview for HTML files
-                if (fileName.endsWith('.html')) {
-                    updatePreview();
-                }
-            });
-            
-            editors.set(fileName, editor);
-            
-            // Focus editor
-            setTimeout(() => editor.focus(), 100);
-        }
-
-        function getEditorMode(fileName) {
-            const ext = fileName.split('.').pop().toLowerCase();
-            const modeMap = {
-                'html': 'htmlmixed',
-                'css': 'css',
-                'js': 'javascript',
-                'py': 'python',
-                'json': 'javascript',
-                'md': 'markdown'
-            };
-            return modeMap[ext] || 'text';
-        }
-
-        function createNewFile() {
-            const fileName = prompt('Enter file name:');
-            if (!fileName) return;
-            
-            if (currentProject.files[fileName]) {
-                alert('File already exists!');
-                return;
-            }
-            
-            currentProject.files[fileName] = '';
-            updateFileList();
-            openFile(fileName);
-        }
-
-        function showPreview() {
-            const previewArea = document.getElementById('previewArea');
-            previewArea.classList.add('active');
-            updatePreview();
-        }
-
-        function updatePreview() {
-            const iframe = document.getElementById('previewIframe');
-            const htmlContent = currentProject.files['index.html'] || '<h1>No index.html found</h1>';
-            
-            // Create a blob URL for the HTML content
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            iframe.src = url;
-        }
-
-        function runProject() {
-            addConsoleMessage('Running project...', 'success');
-            showConsole();
-            
-            // Show preview if HTML file exists
-            if (currentProject.files['index.html']) {
-                showPreview();
-                addConsoleMessage('Project running at http://localhost:3000', 'success');
-            } else if (currentProject.files['app.py']) {
-                addConsoleMessage('Starting Flask server...', 'success');
-                addConsoleMessage('Server running at http://localhost:5000', 'success');
-            } else {
-                addConsoleMessage('No main file found to run', 'error');
-            }
-        }
-
-        function showConsole() {
-            document.getElementById('console').classList.add('active');
-        }
-
-        function addConsoleMessage(message, type = '') {
-            const console = document.getElementById('consoleContent');
-            const line = document.createElement('div');
-            line.className = `console-line ${type}`;
-            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            console.appendChild(line);
-            console.scrollTop = console.scrollHeight;
-        }
-
-        function saveProject() {
-            if (!currentProject.unsavedChanges) {
-                addConsoleMessage('No changes to save', '');
-                return;
-            }
-            
-            // Simulate saving
-            addConsoleMessage('Saving project...', '');
-            setTimeout(() => {
-                currentProject.unsavedChanges = false;
-                addConsoleMessage('Project saved successfully!', 'success');
-            }, 1000);
-        }
-
-        function shareProject() {
-            const url = `https://mycodestudio.com/${currentProject.name.toLowerCase().replace(/\s+/g, '-')}`;
-            navigator.clipboard.writeText(url).then(() => {
-                addChatMessage('ai', `Project shared! Link copied to clipboard: ${url}`);
-            });
-        }
-
-        function toggleAIChat() {
-            const chat = document.getElementById('aiChat');
-            chat.classList.toggle('active');
-        }
-
-        async function sendChatMessage() {
+        async function sendMessage() {
             const input = document.getElementById('chatInput');
             const message = input.value.trim();
+
             if (!message) return;
-            
-            addChatMessage('user', message);
+
+            addMessage('user', message);
             input.value = '';
-            
+            autoResizeTextarea();
+
+            showTyping();
+
             try {
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: message,
-                        sessionId: sessionId,
-                        currentProject: currentProject
+                        selectedRepo: selectedRepo,
+                        sessionId: sessionId
                     })
                 });
-                
+
                 const data = await response.json();
-                
+                hideTyping();
+
                 if (data.success) {
-                    addChatMessage('ai', data.response);
-                    
-                    // Check if AI wants to create/modify files
-                    if (message.toLowerCase().includes('add') || message.toLowerCase().includes('create')) {
-                        handleAICodeGeneration(message);
+                    addMessage('ai', data.response);
+
+                    // Check if AI wants to perform actions
+                    if (selectedRepo && (message.toLowerCase().includes('add') || 
+                        message.toLowerCase().includes('create') || 
+                        message.toLowerCase().includes('fix') ||
+                        message.toLowerCase().includes('modify'))) {
+
+                        // Show that AI is working
+                        addMessage('system', 'AI is analyzing your request and preparing changes...');
+                        await handleCodeGeneration(message);
                     }
                 } else {
-                    addChatMessage('ai', 'Sorry, I encountered an error: ' + data.error);
+                    addMessage('ai', 'Sorry, I encountered an error: ' + data.error);
                 }
             } catch (error) {
-                addChatMessage('ai', 'Sorry, I encountered an error: ' + error.message);
+                hideTyping();
+                addMessage('ai', 'Sorry, I encountered an error: ' + error.message);
             }
         }
 
-        async function handleAICodeGeneration(instruction) {
+        async function handleCodeGeneration(instruction) {
             try {
-                // Determine file type and name from instruction
+                // Determine file type and language from instruction
                 let fileName = 'script.js';
                 let language = 'javascript';
-                
+
                 if (instruction.toLowerCase().includes('python')) {
-                    fileName = 'script.py';
+                    fileName = 'main.py';
                     language = 'python';
                 } else if (instruction.toLowerCase().includes('html')) {
-                    fileName = 'page.html';
+                    fileName = 'index.html';
                     language = 'html';
                 } else if (instruction.toLowerCase().includes('css')) {
                     fileName = 'styles.css';
                     language = 'css';
+                } else if (instruction.toLowerCase().includes('api') || instruction.toLowerCase().includes('server')) {
+                    fileName = 'server.js';
+                    language = 'javascript';
                 }
-                
-                const response = await fetch('/api/generate-code', {
+
+                const response = await fetch('/api/repo/generate-code', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        prompt: instruction,
+                        owner: selectedRepo.full_name.split('/')[0],
+                        repo: selectedRepo.name,
+                        instruction: instruction,
                         language: language,
-                        context: `Current project: ${currentProject.name}`
+                        fileName: fileName
                     })
                 });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Add file to project
-                    currentProject.files[fileName] = data.code;
-                    updateFileList();
-                    openFile(fileName);
-                    
-                    addChatMessage('ai', `Created ${fileName} with the requested code! You can now edit it or ask me to modify it further.`);
-                }
-            } catch (error) {
-                addChatMessage('ai', 'Failed to generate code: ' + error.message);
-            }
-        }
 
-        function addChatMessage(sender, message) {
-            const container = document.getElementById('chatMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message ${sender}`;
-            messageDiv.textContent = message;
-            container.appendChild(messageDiv);
-            container.scrollTop = container.scrollHeight;
-        }
-
-        async function loadGitHubRepos() {
-            try {
-                const response = await fetch('/api/github/repos');
                 const data = await response.json();
-                
+
                 if (data.success) {
-                    displayGitHubRepos(data.repos);
+                    addMessage('system', `✅ Created ${data.fileName} and committed to repository`);
+                    addMessage('ai', `I've successfully created ${data.fileName} with the requested functionality and committed it to your repository. You can now test it or ask me to make further modifications.`);
                 } else {
-                    addChatMessage('ai', 'Failed to load GitHub repos: ' + data.error);
+                    addMessage('system', '❌ Failed to create file: ' + data.error);
                 }
             } catch (error) {
-                addChatMessage('ai', 'Error loading GitHub repos: ' + error.message);
+                addMessage('system', '❌ Error: ' + error.message);
             }
         }
 
-        function displayGitHubRepos(repos) {
-            const container = document.getElementById('githubReposList');
-            container.innerHTML = '';
-            
-            repos.forEach(repo => {
-                const repoDiv = document.createElement('div');
-                repoDiv.className = 'template-card';
-                repoDiv.innerHTML = `
-                    <div class="template-name">${repo.name}</div>
-                    <div class="template-desc">${repo.description || 'No description'}</div>
-                    <div class="template-tech">${repo.language || 'Unknown'}</div>
-                `;
-                repoDiv.addEventListener('click', () => loadGitHubRepo(repo));
-                container.appendChild(repoDiv);
-            });
+        function addMessage(type, content) {
+            const container = document.getElementById('chatMessages');
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.textContent = content;
+
+            container.appendChild(message);
+            container.scrollTop = container.scrollHeight;
+
+            conversationActive = true;
         }
 
-        async function loadGitHubRepo(repo) {
-            try {
-                addChatMessage('ai', `Loading repository: ${repo.name}...`);
-                
-                // Load repository files
-                const response = await fetch(`/api/github/files/${repo.full_name.split('/')[0]}/${repo.name}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    currentProject = {
-                        name: repo.name,
-                        files: {},
-                        activeFile: null,
-                        unsavedChanges: false
-                    };
-                    
-                    // Load file contents
-                    for (const file of data.files) {
-                        if (file.type === 'file') {
-                            try {
-                                const contentResponse = await fetch(`/api/github/file/${repo.full_name.split('/')[0]}/${repo.name}/${file.path}`);
-                                const contentData = await contentResponse.json();
-                                if (contentData.success) {
-                                    currentProject.files[file.name] = contentData.content;
-                                }
-                            } catch (e) {
-                                console.error('Error loading file:', file.name, e);
-                            }
-                        }
-                    }
-                    
-                    updateProjectName();
-                    updateFileList();
-                    addChatMessage('ai', `Successfully loaded ${repo.name}! You can now edit the files and ask me to make changes.`);
-                    switchSidebarTab('files');
-                }
-            } catch (error) {
-                addChatMessage('ai', 'Error loading repository: ' + error.message);
+        function showTyping() {
+            document.getElementById('typingIndicator').style.display = 'flex';
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+        }
+
+        function hideTyping() {
+            document.getElementById('typingIndicator').style.display = 'none';
+        }
+
+        function updateStatus(status) {
+            const badge = document.getElementById('statusBadge');
+            badge.textContent = status;
+            badge.className = 'status-badge';
+
+            if (status === 'Connected') {
+                badge.style.background = '#48bb78';
+            } else if (status === 'Working') {
+                badge.style.background = '#ed8936';
             }
         }
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey || e.metaKey) {
-                switch (e.key) {
-                    case 's':
-                        e.preventDefault();
-                        saveProject();
-                        break;
-                    case 'n':
-                        e.preventDefault();
-                        document.getElementById('projectModal').classList.add('active');
-                        break;
-                    case '`':
-                        e.preventDefault();
-                        showConsole();
-                        break;
-                }
+        function sendSuggestion(message) {
+            document.getElementById('chatInput').value = message;
+            sendMessage();
+        }
+
+        function autoResizeTextarea() {
+            const textarea = document.getElementById('chatInput');
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+
+        function toggleMobileMenu() {
+            document.getElementById('sidebar').classList.toggle('mobile-open');
+        }
+
+        // Mobile responsive handling
+        function checkMobile() {
+            const mobileBtn = document.getElementById('mobileMenuBtn');
+            if (window.innerWidth <= 768) {
+                mobileBtn.style.display = 'block';
+            } else {
+                mobileBtn.style.display = 'none';
+                document.getElementById('sidebar').classList.remove('mobile-open');
             }
-        });
+        }
+
+        window.addEventListener('resize', checkMobile);
+        checkMobile();
     </script>
 </body>
 </html>

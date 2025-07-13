@@ -135,7 +135,7 @@ const conversationHistory = new Map();
 // Chat with AI (Repository-aware)
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, selectedRepo, repoFiles, sessionId = 'default' } = req.body;
+    const { message, selectedRepo, sessionId = 'default' } = req.body;
     
     // Get or create conversation history for this session
     if (!conversationHistory.has(sessionId)) {
@@ -143,20 +143,18 @@ app.post('/api/chat', async (req, res) => {
     }
     const history = conversationHistory.get(sessionId);
     
-    let systemPrompt = 'You are an expert AI coding assistant specialized in repository management and code generation. You remember previous conversations and maintain context.';
+    let systemPrompt = 'You are an expert AI coding assistant like Replit Agent. You help users build, modify, and fix code by understanding their natural language requests. Be conversational, helpful, and explain what you can do.';
     
     if (selectedRepo) {
-      systemPrompt += ` You are currently working on the repository "${selectedRepo.name}". You can create, modify, or analyze files in this repository. When the user asks for code changes, provide specific file names and complete code content.`;
-    }
-    
-    if (repoFiles && repoFiles.length > 0) {
-      systemPrompt += `\n\nCurrent repository files: ${repoFiles.join(', ')}`;
+      systemPrompt += ` You are currently connected to the repository "${selectedRepo.name}" (${selectedRepo.description || 'No description'}). You can help create new files, modify existing code, add features, fix bugs, and build complete applications. When users ask for code changes, you will automatically handle file creation and commits.`;
+    } else {
+      systemPrompt += ' The user hasn\'t connected a repository yet. Encourage them to import a repository from GitHub so you can help them with their code.';
     }
     
     // Build messages array with history
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...history.slice(-10), // Keep last 10 messages for context
+      ...history.slice(-8), // Keep last 8 messages for context
       { role: 'user', content: message }
     ];
     
@@ -164,7 +162,7 @@ app.post('/api/chat', async (req, res) => {
       model: 'deepseek-coder',
       messages: messages,
       temperature: 0.3,
-      max_tokens: 2000
+      max_tokens: 1500
     }, {
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -178,15 +176,14 @@ app.post('/api/chat', async (req, res) => {
     history.push({ role: 'user', content: message });
     history.push({ role: 'assistant', content: aiResponse });
     
-    // Keep history manageable (last 20 messages)
-    if (history.length > 20) {
-      history.splice(0, history.length - 20);
+    // Keep history manageable (last 16 messages)
+    if (history.length > 16) {
+      history.splice(0, history.length - 16);
     }
     
     res.json({
       success: true,
       response: aiResponse,
-      hasCodeAction: message.toLowerCase().includes('add') || message.toLowerCase().includes('create') || message.toLowerCase().includes('modify'),
       sessionId: sessionId
     });
   } catch (error) {
