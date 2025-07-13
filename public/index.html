@@ -475,6 +475,7 @@
         let selectedRepo = null;
         let currentProject = null;
         let generatedFiles = {};
+        let sessionId = 'session_' + Date.now(); // Unique session ID for chat memory
 
         // DOM elements
         const loadReposBtn = document.getElementById('loadRepos');
@@ -592,20 +593,8 @@
                 
                 if (!filesData.success) throw new Error(filesData.error);
                 
-                // Handle both JSON object and string responses
-                if (typeof filesData.files === 'string') {
-                    try {
-                        generatedFiles = JSON.parse(filesData.files);
-                    } catch (e) {
-                        // If not valid JSON, create a basic file structure
-                        generatedFiles = {
-                            'index.html': filesData.files,
-                            'README.md': `# ${name}\n\nAI-generated project\n\n## How to run\nOpen index.html in your browser`
-                        };
-                    }
-                } else {
-                    generatedFiles = filesData.files;
-                }
+                // Files are now properly structured from the server
+                generatedFiles = filesData.files;
                 updateStep('step2', 'completed');
                 updateStep('step3', 'active');
                 
@@ -757,7 +746,8 @@
                         body: JSON.stringify({ 
                             message, 
                             selectedRepo,
-                            repoFiles: currentProject ? Object.keys(currentProject) : []
+                            repoFiles: currentProject ? Object.keys(currentProject) : [],
+                            sessionId: sessionId
                         })
                     });
                     const data = await response.json();

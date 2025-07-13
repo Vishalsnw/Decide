@@ -129,28 +129,40 @@ app.post('/api/debug-code', async (req, res) => {
   }
 });
 
+// Store conversation history per session
+const conversationHistory = new Map();
+
 // Chat with AI (Repository-aware)
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, selectedRepo, repoFiles } = req.body;
+    const { message, selectedRepo, repoFiles, sessionId = 'default' } = req.body;
     
-    let systemPrompt = 'You are an expert AI coding assistant specialized in repository management and code generation.';
+    // Get or create conversation history for this session
+    if (!conversationHistory.has(sessionId)) {
+      conversationHistory.set(sessionId, []);
+    }
+    const history = conversationHistory.get(sessionId);
+    
+    let systemPrompt = 'You are an expert AI coding assistant specialized in repository management and code generation. You remember previous conversations and maintain context.';
     
     if (selectedRepo) {
       systemPrompt += ` You are currently working on the repository "${selectedRepo.name}". You can create, modify, or analyze files in this repository. When the user asks for code changes, provide specific file names and complete code content.`;
     }
     
-    let contextMessage = message;
     if (repoFiles && repoFiles.length > 0) {
-      contextMessage += `\n\nCurrent repository files: ${repoFiles.join(', ')}`;
+      systemPrompt += `\n\nCurrent repository files: ${repoFiles.join(', ')}`;
     }
+    
+    // Build messages array with history
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history.slice(-10), // Keep last 10 messages for context
+      { role: 'user', content: message }
+    ];
     
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: contextMessage }
-      ],
+      messages: messages,
       temperature: 0.3,
       max_tokens: 2000
     }, {
@@ -162,10 +174,20 @@ app.post('/api/chat', async (req, res) => {
 
     const aiResponse = response.data.choices[0].message.content;
     
+    // Add to conversation history
+    history.push({ role: 'user', content: message });
+    history.push({ role: 'assistant', content: aiResponse });
+    
+    // Keep history manageable (last 20 messages)
+    if (history.length > 20) {
+      history.splice(0, history.length - 20);
+    }
+    
     res.json({
       success: true,
       response: aiResponse,
-      hasCodeAction: message.toLowerCase().includes('add') || message.toLowerCase().includes('create') || message.toLowerCase().includes('modify')
+      hasCodeAction: message.toLowerCase().includes('add') || message.toLowerCase().includes('create') || message.toLowerCase().includes('modify'),
+      sessionId: sessionId
     });
   } catch (error) {
     console.error('Chat error:', error.message);
@@ -513,60 +535,92 @@ app.post('/api/generate-project-files', async (req, res) => {
   try {
     const { plan, projectName, techStack } = req.body;
     
-    const systemPrompt = `You are an expert full-stack developer. Generate complete, production-ready files for a web application based on the provided plan. 
-
-    IMPORTANT: Return your response as a JSON object where each key is a file path and each value is the complete file content. Format:
-    {
-      "index.html": "<!DOCTYPE html>...",
-      "style.css": "/* CSS content */...",
-      "script.js": "// JavaScript content...",
-      "README.md": "# Project documentation..."
-    }
+    // Generate files individually for better structure
+    const files = {};
     
-    Include ALL necessary files for a working application.`;
+    // Generate HTML file
+    const htmlPrompt = `Create a complete HTML file for a ${techStack} project called "${projectName}". Include proper DOCTYPE, head section with meta tags, and a well-structured body. Make it responsive and professional.`;
     
-    const userPrompt = `Generate complete files for this project:
-    Plan: ${plan}
-    Project Name: ${projectName}
-    Tech Stack: ${techStack}
-    
-    Create a fully functional web application with:
-    - Responsive HTML structure
-    - Professional CSS styling
-    - Complete JavaScript functionality
-    - README with setup instructions
-    - Any necessary configuration files
-    
-    Make it production-ready and visually appealing.`;
-    
-    const response = await axios.post(DEEPSEEK_API_URL, {
+    const htmlResponse = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
+        { role: 'system', content: 'You are an expert HTML developer. Generate clean, semantic HTML code without any markdown formatting.' },
+        { role: 'user', content: htmlPrompt }
       ],
       temperature: 0.1,
-      max_tokens: 4000
+      max_tokens: 1500
     }, {
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
         'Content-Type': 'application/json'
       }
     });
-
-    const filesText = response.data.choices[0].message.content;
     
-    // Try to parse as JSON, if fails, create a simple structure
-    let files;
-    try {
-      files = JSON.parse(filesText);
-    } catch (e) {
-      // Fallback: create basic files structure
-      files = {
-        'index.html': filesText,
-        'README.md': `# ${projectName}\n\nAI-generated web application.\n\n## Setup\n1. Open index.html in a browser\n2. Enjoy your app!`
-      };
-    }
+    files['index.html'] = htmlResponse.data.choices[0].message.content.replace(/```html|```/g, '').trim();
+    
+    // Generate CSS file
+    const cssPrompt = `Create a complete CSS file for the "${projectName}" project. Include modern styling, responsive design, and professional appearance. Make it visually appealing with proper colors, typography, and layout.`;
+    
+    const cssResponse = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-coder',
+      messages: [
+        { role: 'system', content: 'You are an expert CSS developer. Generate clean, modern CSS code without any markdown formatting.' },
+        { role: 'user', content: cssPrompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 1500
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    files['styles.css'] = cssResponse.data.choices[0].message.content.replace(/```css|```/g, '').trim();
+    
+    // Generate JavaScript file
+    const jsPrompt = `Create a complete JavaScript file for the "${projectName}" project. Include interactive functionality, form handling, and modern ES6+ features. Make it functional and well-commented.`;
+    
+    const jsResponse = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-coder',
+      messages: [
+        { role: 'system', content: 'You are an expert JavaScript developer. Generate clean, modern JavaScript code without any markdown formatting.' },
+        { role: 'user', content: jsPrompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 1500
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    files['script.js'] = jsResponse.data.choices[0].message.content.replace(/```javascript|```js|```/g, '').trim();
+    
+    // Generate README
+    files['README.md'] = `# ${projectName}
+
+AI-generated web application built with ${techStack}.
+
+## Features
+- Responsive design
+- Modern UI/UX
+- Interactive functionality
+
+## Setup
+1. Clone the repository
+2. Open index.html in your browser
+3. Enjoy your application!
+
+## Files Structure
+- \`index.html\` - Main HTML file
+- \`styles.css\` - CSS styling
+- \`script.js\` - JavaScript functionality
+
+## Technology Stack
+${techStack}
+`;
     
     res.json({
       success: true,
