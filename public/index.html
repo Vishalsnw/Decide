@@ -1,4 +1,7 @@
+The primary goal is to update the sendMessage function to handle complete project generation, display concise updates, and maintain persistent conversation history.
+```
 
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -847,47 +850,67 @@
         }
 
         async function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
-
+            const inputBox = document.getElementById('messageInput');
+            const message = inputBox.value.trim();
             if (!message) return;
 
             // Add user message
-            addMessage('user', message);
-            input.value = '';
-            autoResizeTextarea();
-
-            // Show typing indicator
+            addMessage(message, 'user');
+            inputBox.value = '';
             showTyping();
 
             try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: message,
-                        selectedRepo: selectedRepo,
-                        sessionId: sessionId
-                    })
-                });
+                if (selectedRepo && (message.toLowerCase().includes('create') || 
+                    message.toLowerCase().includes('build') || 
+                    message.toLowerCase().includes('make') ||
+                    message.toLowerCase().includes('add') ||
+                    message.toLowerCase().includes('fix') ||
+                    message.toLowerCase().includes('modify'))) {
 
-                const data = await response.json();
-                hideTyping();
+                    // Generate complete project with blueprint
+                    const response = await fetch('/api/repo/generate-code', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            owner: selectedRepo.full_name.split('/')[0],
+                            repo: selectedRepo.full_name.split('/')[1],
+                            instruction: message
+                        })
+                    });
 
-                if (data.success) {
-                    addMessage('assistant', data.response);
+                    const result = await response.json();
+                    hideTyping();
 
-                    // If repo is connected and message suggests code changes, trigger auto-generation
-                    if (selectedRepo && isCodeRequest(message)) {
-                        addMessage('system', 'AI is working on your request...');
-                        await handleCodeGeneration(message);
+                    if (result.success) {
+                        const filesList = result.files.map(f => `• ${f.path} (${f.description})`).join('\n');
+                        addMessage(`✅ ${result.action}\n\nFiles created/updated:\n${filesList}\n\n🚀 All changes committed and pushed automatically!`, 'assistant');
+                    } else {
+                        addMessage(`❌ ${result.action || 'Error'}: ${result.error}`, 'assistant');
                     }
                 } else {
-                    addMessage('assistant', 'Sorry, I encountered an error: ' + data.error);
+                    // Regular chat with persistent history
+                    const response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            message, 
+                            selectedRepo,
+                            sessionId: selectedRepo ? selectedRepo.full_name : 'default'
+                        })
+                    });
+
+                    const result = await response.json();
+                    hideTyping();
+
+                    if (result.success) {
+                        addMessage(result.response, 'assistant');
+                    } else {
+                        addMessage(`Error: ${result.error}`, 'assistant');
+                    }
                 }
             } catch (error) {
                 hideTyping();
-                addMessage('assistant', 'Sorry, I encountered an error: ' + error.message);
+                addMessage(`Error: ${error.message}`, 'assistant');
             }
         }
 

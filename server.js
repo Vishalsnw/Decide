@@ -129,40 +129,43 @@ app.post('/api/debug-code', async (req, res) => {
   }
 });
 
-// Store conversation history per session
-const conversationHistory = new Map();
+// Store conversation history per repository (persistent until project completion)
+const projectConversations = new Map();
 
-// Chat with AI (Repository-aware)
+// Chat with AI (Repository-aware with persistent history)
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, selectedRepo, sessionId = 'default' } = req.body;
     
-    // Get or create conversation history for this session
-    if (!conversationHistory.has(sessionId)) {
-      conversationHistory.set(sessionId, []);
-    }
-    const history = conversationHistory.get(sessionId);
+    // Use repo name as persistent key for conversation history
+    const conversationKey = selectedRepo ? selectedRepo.full_name : sessionId;
     
-    let systemPrompt = 'You are an expert AI coding assistant like Replit Agent. You help users build, modify, and fix code by understanding their natural language requests. Be conversational, helpful, and explain what you can do.';
+    // Get or create conversation history for this project
+    if (!projectConversations.has(conversationKey)) {
+      projectConversations.set(conversationKey, []);
+    }
+    const history = projectConversations.get(conversationKey);
+    
+    let systemPrompt = 'You are an expert AI coding assistant like Replit Agent. You help users build, modify, and fix code. Be concise and action-focused. When making changes, briefly state what you\'re doing (e.g., "Creating login system...", "Fixing responsive layout...", "Adding API endpoints..."). Always create complete project blueprints with all necessary files.';
     
     if (selectedRepo) {
-      systemPrompt += ` You are currently connected to the repository "${selectedRepo.name}" (${selectedRepo.description || 'No description'}). You can help create new files, modify existing code, add features, fix bugs, and build complete applications. When users ask for code changes, you will automatically handle file creation and commits.`;
+      systemPrompt += ` You are working on "${selectedRepo.name}" repository. Remember all previous conversations and project context. When users request features, first create a complete blueprint of all required files, then generate each file with proper structure, styling, and functionality. Auto-commit and push all changes.`;
     } else {
-      systemPrompt += ' The user hasn\'t connected a repository yet. Encourage them to import a repository from GitHub so you can help them with their code.';
+      systemPrompt += ' The user hasn\'t connected a repository yet. Encourage them to import a repository so you can help build their project.';
     }
     
-    // Build messages array with history
+    // Build messages array with full project history (kept until completion)
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...history.slice(-8), // Keep last 8 messages for context
+      ...history.slice(-20), // Keep more context for project continuity
       { role: 'user', content: message }
     ];
     
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: messages,
-      temperature: 0.3,
-      max_tokens: 1500
+      temperature: 0.2,
+      max_tokens: 2000
     }, {
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -172,19 +175,19 @@ app.post('/api/chat', async (req, res) => {
 
     const aiResponse = response.data.choices[0].message.content;
     
-    // Add to conversation history
+    // Add to persistent project history
     history.push({ role: 'user', content: message });
     history.push({ role: 'assistant', content: aiResponse });
     
-    // Keep history manageable (last 16 messages)
-    if (history.length > 16) {
-      history.splice(0, history.length - 16);
+    // Keep extensive history for project context (up to 40 messages)
+    if (history.length > 40) {
+      history.splice(0, history.length - 40);
     }
     
     res.json({
       success: true,
       response: aiResponse,
-      sessionId: sessionId
+      sessionId: conversationKey
     });
   } catch (error) {
     console.error('Chat error:', error.message);
@@ -192,48 +195,36 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Generate and commit code to repository
+// Generate complete project blueprint and create all files
 app.post('/api/repo/generate-code', async (req, res) => {
   try {
-    const { owner, repo, instruction, language = 'javascript', fileName = 'index.html' } = req.body;
+    const { owner, repo, instruction } = req.body;
     
-    // Determine appropriate file type and content based on instruction
-    let finalFileName = fileName;
-    let fileLanguage = language;
+    console.log(`Creating blueprint for: ${instruction}`);
     
-    if (instruction.toLowerCase().includes('html') || instruction.toLowerCase().includes('website') || instruction.toLowerCase().includes('page')) {
-      finalFileName = 'index.html';
-      fileLanguage = 'html';
-    } else if (instruction.toLowerCase().includes('python')) {
-      finalFileName = 'main.py';
-      fileLanguage = 'python';
-    } else if (instruction.toLowerCase().includes('react')) {
-      finalFileName = 'App.js';
-      fileLanguage = 'javascript';
-    } else if (instruction.toLowerCase().includes('api') || instruction.toLowerCase().includes('server')) {
-      finalFileName = 'server.js';
-      fileLanguage = 'javascript';
-    } else if (instruction.toLowerCase().includes('calculator') || instruction.toLowerCase().includes('app')) {
-      finalFileName = 'index.html';
-      fileLanguage = 'html';
-    }
-    
-    const systemPrompt = `You are an expert ${fileLanguage} programmer. Generate complete, production-ready code based on the user's instruction. 
+    // Step 1: Create project blueprint
+    const blueprintPrompt = `Analyze this request and create a complete project blueprint: "${instruction}"
 
-If creating HTML: Include HTML, CSS, and JavaScript all in one file with proper structure, styling, and functionality.
-If creating Python: Write clean, well-commented Python code with proper error handling.
-If creating JavaScript: Write modern ES6+ JavaScript with proper structure.
+Return a JSON object with this exact structure:
+{
+  "action": "brief description of what you're building (max 50 chars)",
+  "files": [
+    {"path": "index.html", "type": "html", "description": "main page"},
+    {"path": "style.css", "type": "css", "description": "styling"},
+    {"path": "script.js", "type": "javascript", "description": "functionality"}
+  ]
+}
 
-Return ONLY the complete code without any explanations, markdown formatting, or code blocks.`;
+Include ALL necessary files for a complete, functional project.`;
     
-    const response = await axios.post(DEEPSEEK_API_URL, {
+    const blueprintResponse = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Create a ${fileLanguage} file for: ${instruction}. Make it fully functional, responsive, and production-ready.` }
+        { role: 'system', content: 'You are a project architect. Return only valid JSON.' },
+        { role: 'user', content: blueprintPrompt }
       ],
       temperature: 0.1,
-      max_tokens: 4000
+      max_tokens: 1000
     }, {
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -241,55 +232,103 @@ Return ONLY the complete code without any explanations, markdown formatting, or 
       }
     });
 
-    let generatedCode = response.data.choices[0].message.content;
-    
-    // Clean the code (remove any markdown formatting that might slip through)
-    generatedCode = generatedCode.replace(/```[a-zA-Z]*\n/g, '').replace(/```/g, '').trim();
-    
-    // Check if file already exists to get SHA
-    let sha = null;
+    let blueprint;
     try {
-      const existingFile = await octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path: finalFileName
-      });
-      sha = existingFile.data.sha;
-    } catch (error) {
-      // File doesn't exist, that's fine
+      const cleanResponse = blueprintResponse.data.choices[0].message.content
+        .replace(/```json|```/g, '').trim();
+      blueprint = JSON.parse(cleanResponse);
+    } catch (e) {
+      // Fallback blueprint
+      blueprint = {
+        action: "Creating web application",
+        files: [
+          {"path": "index.html", "type": "html", "description": "main page"},
+          {"path": "style.css", "type": "css", "description": "styling"},
+          {"path": "script.js", "type": "javascript", "description": "functionality"}
+        ]
+      };
     }
     
-    // Upload to GitHub
-    const uploadResponse = await octokit.rest.repos.createOrUpdateFileContents({
-      owner,
-      repo,
-      path: finalFileName,
-      message: `${sha ? 'Update' : 'Add'} ${finalFileName} - AI generated code`,
-      content: Buffer.from(generatedCode).toString('base64'),
-      ...(sha && { sha })
-    });
+    console.log(`Blueprint: ${blueprint.action} - ${blueprint.files.length} files`);
     
-    console.log(`Successfully ${sha ? 'updated' : 'created'} ${finalFileName} in ${owner}/${repo}`);
+    // Step 2: Generate each file
+    const createdFiles = [];
+    
+    for (const fileSpec of blueprint.files) {
+      console.log(`Generating ${fileSpec.path}...`);
+      
+      const filePrompt = `Create a complete, production-ready ${fileSpec.type} file for: ${instruction}
+      
+File: ${fileSpec.path} (${fileSpec.description})
+Context: This is part of a ${blueprint.files.length}-file project. Ensure this file works seamlessly with the other files.
+
+Requirements:
+- If HTML: Include responsive design, proper structure, and link to CSS/JS files
+- If CSS: Modern styling, mobile-responsive, professional appearance
+- If JavaScript: Clean ES6+ code, proper error handling, smooth functionality
+- Make it fully functional and production-ready
+
+Return ONLY the complete code without explanations or markdown.`;
+      
+      const fileResponse = await axios.post(DEEPSEEK_API_URL, {
+        model: 'deepseek-coder',
+        messages: [
+          { role: 'system', content: `You are an expert ${fileSpec.type} developer. Generate clean, production-ready code.` },
+          { role: 'user', content: filePrompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 3000
+      }, {
+        headers: {
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      let code = fileResponse.data.choices[0].message.content
+        .replace(/```[a-zA-Z]*\n/g, '').replace(/```/g, '').trim();
+      
+      // Get existing SHA if file exists
+      let sha = null;
+      try {
+        const existing = await octokit.rest.repos.getContent({
+          owner, repo, path: fileSpec.path
+        });
+        sha = existing.data.sha;
+      } catch (e) {}
+      
+      // Create/update file
+      const upload = await octokit.rest.repos.createOrUpdateFileContents({
+        owner, repo,
+        path: fileSpec.path,
+        message: `${blueprint.action} - ${fileSpec.description}`,
+        content: Buffer.from(code).toString('base64'),
+        ...(sha && { sha })
+      });
+      
+      createdFiles.push({
+        path: fileSpec.path,
+        action: sha ? 'updated' : 'created',
+        description: fileSpec.description
+      });
+      
+      console.log(`✓ ${fileSpec.path} ${sha ? 'updated' : 'created'}`);
+    }
     
     res.json({
       success: true,
-      fileName: finalFileName,
-      commitUrl: uploadResponse.data.commit.html_url,
-      action: sha ? 'updated' : 'created'
+      action: blueprint.action,
+      files: createdFiles,
+      message: `${blueprint.action} - ${createdFiles.length} files ${createdFiles[0].action}`
     });
+    
   } catch (error) {
-    console.error('Code generation error:', error.response?.data || error.message);
-    
-    let errorMessage = error.message;
-    if (error.response?.status === 404) {
-      errorMessage = 'Repository not found or no write access';
-    } else if (error.response?.status === 403) {
-      errorMessage = 'Insufficient permissions to write to repository';
-    } else if (error.response?.data?.message) {
-      errorMessage = error.response.data.message;
-    }
-    
-    res.status(500).json({ success: false, error: errorMessage });
+    console.error('Blueprint generation error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      action: "Error creating project"
+    });
   }
 });
 
