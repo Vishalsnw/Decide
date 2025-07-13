@@ -387,6 +387,7 @@
         @media (max-width: 768px) {
             .header {
                 padding: 8px;
+                gap: 8px;
             }
 
             .logo {
@@ -491,13 +492,18 @@
         }
 
         @media (max-width: 480px) {
-            .repo-info {
-                display: none;
+            .header {
+                padding: 6px 8px;
             }
 
-            .header {
-                justify-content: space-between;
-                gap: 8px;
+            .repo-info {
+                flex: 0;
+                min-width: auto;
+            }
+
+            .repo-badge {
+                max-width: 100px;
+                font-size: 9px;
             }
 
             .logo {
@@ -530,19 +536,46 @@
                 font-size: 12px;
                 max-width: 250px;
             }
-        }
 
-        @media (max-width: 360px) {
-            .header {
-                padding: 6px;
+            .chat-container {
+                height: calc(100vh - 50px);
             }
 
             .messages {
                 padding: 6px;
+                gap: 8px;
             }
 
             .input-area {
                 padding: 6px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .header {
+                padding: 4px 6px;
+            }
+
+            .logo {
+                font-size: 12px;
+            }
+
+            .import-btn {
+                font-size: 9px;
+                padding: 4px 6px;
+            }
+
+            .repo-badge {
+                max-width: 80px;
+                font-size: 8px;
+            }
+
+            .messages {
+                padding: 4px;
+            }
+
+            .input-area {
+                padding: 4px;
             }
 
             .repo-modal {
@@ -702,47 +735,50 @@
             }
 
             container.innerHTML = repos.map(function(repo) {
-                return '<div class="repo-item" onclick="selectRepository(\'' + 
-                    JSON.stringify(repo).replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')">' +
+                return '<div class="repo-item" data-repo="' + encodeURIComponent(JSON.stringify(repo)) + '">' +
                     '<div class="repo-name">' + repo.name + '</div>' +
                     '<div class="repo-desc">' + (repo.description || 'No description') + '</div>' +
                     '<div class="repo-lang">' + (repo.language || 'Unknown language') + '</div>' +
                     '</div>';
             }).join('');
+
+            // Add event listeners to repo items
+            document.querySelectorAll('.repo-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    const repoData = decodeURIComponent(this.dataset.repo);
+                    selectRepository(JSON.parse(repoData));
+                });
+            });
         }
 
-        function selectRepository(repoStr) {
-            try {
-                selectedRepo = JSON.parse(repoStr.replace(/&quot;/g, '"'));
+        function selectRepository(repo) {
+            selectedRepo = repo;
 
-                // Update UI
-                const badge = document.getElementById('repoBadge');
-                badge.textContent = selectedRepo.name;
-                badge.classList.add('connected');
+            // Update UI
+            const badge = document.getElementById('repoBadge');
+            badge.textContent = selectedRepo.name;
+            badge.classList.add('connected');
 
-                hideRepoModal();
+            hideRepoModal();
 
-                // Clear welcome and add connection message
-                const messages = document.getElementById('messages');
-                messages.innerHTML = 
-                    '<div class="message system">Connected to repository: ' + selectedRepo.name + '</div>' +
-                    '<div class="message assistant">' +
-                    'Hi! I\'m now connected to your repository "' + selectedRepo.name + '". ' +
-                    'I can help you create new files, modify existing code, add features, fix bugs, or build complete applications. ' +
-                    'Just describe what you want to do in plain English and I\'ll handle the coding and repository updates automatically.' +
-                    '<br><br>' +
-                    'What would you like to build or modify today?' +
-                    '</div>' +
-                    '<div class="typing" id="typing">' +
-                    '<div class="typing-dots">' +
-                    '<div class="typing-dot"></div>' +
-                    '<div class="typing-dot"></div>' +
-                    '<div class="typing-dot"></div>' +
-                    '</div>' +
-                    '</div>';
-            } catch (error) {
-                console.error('Error parsing repository data:', error);
-            }
+            // Clear welcome and add connection message
+            const messages = document.getElementById('messages');
+            messages.innerHTML = 
+                '<div class="message system">Connected to repository: ' + selectedRepo.name + '</div>' +
+                '<div class="message assistant">' +
+                'Hi! I\'m now connected to your repository "' + selectedRepo.name + '". ' +
+                'I can help you create new files, modify existing code, add features, fix bugs, or build complete applications. ' +
+                'Just describe what you want to do in plain English and I\'ll handle the coding and repository updates automatically.' +
+                '<br><br>' +
+                'What would you like to build or modify today?' +
+                '</div>' +
+                '<div class="typing" id="typing">' +
+                '<div class="typing-dots">' +
+                '<div class="typing-dot"></div>' +
+                '<div class="typing-dot"></div>' +
+                '<div class="typing-dot"></div>' +
+                '</div>' +
+                '</div>';
         }
 
         async function sendMessage() {
@@ -832,25 +868,33 @@
 
             // Remove typing indicator before adding new message
             const typing = document.getElementById('typing');
-            if (typing.parentNode) {
+            if (typing && typing.parentNode) {
                 typing.parentNode.removeChild(typing);
             }
 
             messages.appendChild(message);
 
-            // Re-add typing indicator
-            messages.appendChild(typing);
+            // Re-add typing indicator if it exists
+            if (typing) {
+                messages.appendChild(typing);
+            }
 
             messages.scrollTop = messages.scrollHeight;
         }
 
         function showTyping() {
-            document.getElementById('typing').style.display = 'block';
-            document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+            const typing = document.getElementById('typing');
+            if (typing) {
+                typing.style.display = 'block';
+                document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+            }
         }
 
         function hideTyping() {
-            document.getElementById('typing').style.display = 'none';
+            const typing = document.getElementById('typing');
+            if (typing) {
+                typing.style.display = 'none';
+            }
         }
 
         function autoResizeTextarea() {
@@ -858,9 +902,6 @@
             textarea.style.height = 'auto';
             textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
         }
-
-        // Expose selectRepository to global scope for onclick handlers
-        window.selectRepository = selectRepository;
     </script>
 </body>
 </html>
