@@ -535,91 +535,185 @@ app.post('/api/generate-project-files', async (req, res) => {
   try {
     const { plan, projectName, techStack } = req.body;
     
-    // Generate files individually for better structure
-    const files = {};
-    
-    // Generate HTML file
-    const htmlPrompt = `Create a complete HTML file for a ${techStack} project called "${projectName}". Include proper DOCTYPE, head section with meta tags, and a well-structured body. Make it responsive and professional.`;
-    
-    const htmlResponse = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: 'You are an expert HTML developer. Generate clean, semantic HTML code without any markdown formatting.' },
-        { role: 'user', content: htmlPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 1500
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
+    // Enhanced project templates based on tech stack
+    const projectTemplates = {
+      'html-css-js': async () => {
+        const files = {};
+        
+        const htmlPrompt = `Create a complete, professional HTML5 website for "${projectName}". Requirements: ${plan}. Include semantic HTML, proper meta tags, accessibility features, and modern structure.`;
+        const htmlResponse = await makeAIRequest(htmlPrompt, 'You are an expert frontend developer. Generate clean, semantic HTML5 code without markdown formatting.');
+        files['index.html'] = cleanCode(htmlResponse, 'html');
+        
+        const cssPrompt = `Create modern CSS for "${projectName}". Requirements: ${plan}. Include responsive design, CSS Grid/Flexbox, modern styling, animations, and mobile-first approach.`;
+        const cssResponse = await makeAIRequest(cssPrompt, 'You are an expert CSS developer. Generate clean, modern CSS without markdown formatting.');
+        files['style.css'] = cleanCode(cssResponse, 'css');
+        
+        const jsPrompt = `Create interactive JavaScript for "${projectName}". Requirements: ${plan}. Include ES6+ features, DOM manipulation, form handling, API calls, and proper error handling.`;
+        const jsResponse = await makeAIRequest(jsPrompt, 'You are an expert JavaScript developer. Generate clean, modern JavaScript without markdown formatting.');
+        files['script.js'] = cleanCode(jsResponse, 'js');
+        
+        return files;
+      },
+      
+      'react': async () => {
+        const files = {};
+        
+        files['index.html'] = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${projectName}</title>
+    <style>
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        #root { min-height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel" src="app.js"></script>
+</body>
+</html>`;
+
+        const reactPrompt = `Create a complete React application for "${projectName}". Requirements: ${plan}. Include functional components, hooks (useState, useEffect), modern React patterns, and proper component structure.`;
+        const reactResponse = await makeAIRequest(reactPrompt, 'You are an expert React developer. Generate clean React JSX code without markdown formatting.');
+        files['app.js'] = cleanCode(reactResponse, 'js');
+        
+        const cssPrompt = `Create modern CSS for React app "${projectName}". Requirements: ${plan}. Include component-based styling, responsive design, and modern UI patterns.`;
+        const cssResponse = await makeAIRequest(cssPrompt, 'You are an expert CSS developer. Generate clean CSS without markdown formatting.');
+        files['style.css'] = cleanCode(cssResponse, 'css');
+        
+        files['package.json'] = JSON.stringify({
+          name: projectName.toLowerCase().replace(/\s+/g, '-'),
+          version: '1.0.0',
+          dependencies: {
+            'react': '^18.0.0',
+            'react-dom': '^18.0.0'
+          }
+        }, null, 2);
+        
+        return files;
+      },
+      
+      'node-express': async () => {
+        const files = {};
+        
+        const serverPrompt = `Create a complete Express.js server for "${projectName}". Requirements: ${plan}. Include proper routing, middleware, error handling, API endpoints, and static file serving.`;
+        const serverResponse = await makeAIRequest(serverPrompt, 'You are an expert Node.js/Express developer. Generate clean server code without markdown formatting.');
+        files['app.js'] = cleanCode(serverResponse, 'js');
+        
+        files['package.json'] = JSON.stringify({
+          name: projectName.toLowerCase().replace(/\s+/g, '-'),
+          version: '1.0.0',
+          main: 'app.js',
+          scripts: {
+            start: 'node app.js',
+            dev: 'nodemon app.js'
+          },
+          dependencies: {
+            express: '^4.18.2',
+            cors: '^2.8.5',
+            dotenv: '^16.3.1'
+          },
+          devDependencies: {
+            nodemon: '^3.0.1'
+          }
+        }, null, 2);
+        
+        const htmlPrompt = `Create an HTML frontend for Express app "${projectName}". Requirements: ${plan}. Include AJAX calls to backend APIs and modern UI.`;
+        const htmlResponse = await makeAIRequest(htmlPrompt, 'You are an expert frontend developer. Generate clean HTML without markdown formatting.');
+        files['public/index.html'] = cleanCode(htmlResponse, 'html');
+        
+        return files;
+      },
+      
+      'python-flask': async () => {
+        const files = {};
+        
+        const flaskPrompt = `Create a complete Flask application for "${projectName}". Requirements: ${plan}. Include proper routing, templates, API endpoints, error handling, and Flask best practices.`;
+        const flaskResponse = await makeAIRequest(flaskPrompt, 'You are an expert Python Flask developer. Generate clean Flask code without markdown formatting.');
+        files['app.py'] = cleanCode(flaskResponse, 'python');
+        
+        const htmlPrompt = `Create an HTML template for Flask app "${projectName}". Requirements: ${plan}. Use Jinja2 templating and modern frontend practices.`;
+        const htmlResponse = await makeAIRequest(htmlPrompt, 'You are an expert web developer. Generate clean HTML with Jinja2 templates without markdown formatting.');
+        files['templates/index.html'] = cleanCode(htmlResponse, 'html');
+        
+        files['requirements.txt'] = `Flask==2.3.3
+python-dotenv==1.0.0
+gunicorn==21.2.0`;
+        
+        return files;
       }
-    });
+    };
     
-    files['index.html'] = htmlResponse.data.choices[0].message.content.replace(/```html|```/g, '').trim();
+    // Helper function to make AI requests
+    async function makeAIRequest(prompt, systemMessage) {
+      const response = await axios.post(DEEPSEEK_API_URL, {
+        model: 'deepseek-coder',
+        messages: [
+          { role: 'system', content: systemMessage },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 3000
+      }, {
+        headers: {
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.data.choices[0].message.content;
+    }
     
-    // Generate CSS file
-    const cssPrompt = `Create a complete CSS file for the "${projectName}" project. Include modern styling, responsive design, and professional appearance. Make it visually appealing with proper colors, typography, and layout.`;
+    // Helper function to clean code
+    function cleanCode(code, type) {
+      const patterns = {
+        'html': /```html|```/g,
+        'css': /```css|```/g,
+        'js': /```javascript|```js|```/g,
+        'python': /```python|```py|```/g
+      };
+      return code.replace(patterns[type] || /```/g, '').trim();
+    }
     
-    const cssResponse = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: 'You are an expert CSS developer. Generate clean, modern CSS code without any markdown formatting.' },
-        { role: 'user', content: cssPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 1500
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    // Generate files based on tech stack
+    const generator = projectTemplates[techStack] || projectTemplates['html-css-js'];
+    const files = await generator();
     
-    files['styles.css'] = cssResponse.data.choices[0].message.content.replace(/```css|```/g, '').trim();
-    
-    // Generate JavaScript file
-    const jsPrompt = `Create a complete JavaScript file for the "${projectName}" project. Include interactive functionality, form handling, and modern ES6+ features. Make it functional and well-commented.`;
-    
-    const jsResponse = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: 'You are an expert JavaScript developer. Generate clean, modern JavaScript code without any markdown formatting.' },
-        { role: 'user', content: jsPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 1500
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    
-    files['script.js'] = jsResponse.data.choices[0].message.content.replace(/```javascript|```js|```/g, '').trim();
-    
-    // Generate README
+    // Add common files
     files['README.md'] = `# ${projectName}
 
-AI-generated web application built with ${techStack}.
+AI-generated application built with ${techStack}.
+
+## Description
+${plan}
 
 ## Features
-- Responsive design
-- Modern UI/UX
-- Interactive functionality
+- Modern, responsive design
+- Clean, maintainable code
+- Best practices implementation
+- Ready for development and deployment
 
-## Setup
-1. Clone the repository
-2. Open index.html in your browser
-3. Enjoy your application!
+## Quick Start
 
-## Files Structure
-- \`index.html\` - Main HTML file
-- \`styles.css\` - CSS styling
-- \`script.js\` - JavaScript functionality
+${techStack === 'python-flask' ? 
+  '1. Install dependencies: `pip install -r requirements.txt`\n2. Run: `python app.py`\n3. Open: http://localhost:5000' :
+  techStack === 'node-express' ?
+  '1. Install dependencies: `npm install`\n2. Run: `npm start`\n3. Open: http://localhost:3000' :
+  '1. Open `index.html` in your browser\n2. Start developing!'
+}
 
-## Technology Stack
-${techStack}
+## Tech Stack
+- ${techStack.split('-').map(tech => tech.charAt(0).toUpperCase() + tech.slice(1)).join(' + ')}
+
+## Project Structure
+${Object.keys(files).map(file => `- \`${file}\``).join('\n')}
+
+---
+Generated with AI Code Studio
 `;
     
     res.json({
