@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -30,18 +31,19 @@
         .header {
             background: #161b22;
             border-bottom: 1px solid #30363d;
-            padding: 12px 16px;
+            padding: 8px 12px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            min-height: 60px;
+            min-height: 50px;
+            flex-shrink: 0;
         }
 
         .logo {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 18px;
+            gap: 6px;
+            font-size: 16px;
             font-weight: 600;
             color: #58a6ff;
         }
@@ -49,19 +51,24 @@
         .repo-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
             flex: 1;
             justify-content: center;
+            min-width: 0;
         }
 
         .repo-badge {
             background: #238636;
             color: white;
-            padding: 4px 12px;
+            padding: 4px 8px;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
             display: none;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
         }
 
         .repo-badge.connected {
@@ -72,14 +79,16 @@
             background: #238636;
             color: white;
             border: none;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 12px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
             transition: background 0.2s;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .import-btn:hover {
@@ -103,7 +112,7 @@
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            padding: 20px;
+            padding: 16px;
         }
 
         .repo-modal.show {
@@ -115,7 +124,7 @@
             border: 1px solid #30363d;
             border-radius: 8px;
             width: 100%;
-            max-width: 600px;
+            max-width: 500px;
             max-height: 80vh;
             overflow: hidden;
             display: flex;
@@ -123,11 +132,12 @@
         }
 
         .repo-header {
-            padding: 16px;
+            padding: 12px 16px;
             border-bottom: 1px solid #30363d;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .repo-title {
@@ -139,15 +149,20 @@
             background: none;
             border: none;
             color: #7d8590;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
             padding: 4px;
+            border-radius: 4px;
+        }
+
+        .close-btn:hover {
+            color: #e6edf3;
         }
 
         .repo-list {
             flex: 1;
             overflow-y: auto;
-            padding: 16px;
+            padding: 12px;
         }
 
         .repo-item {
@@ -168,16 +183,18 @@
             font-weight: 600;
             color: #58a6ff;
             margin-bottom: 4px;
+            font-size: 14px;
         }
 
         .repo-desc {
-            font-size: 14px;
+            font-size: 12px;
             color: #7d8590;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            line-height: 1.4;
         }
 
         .repo-lang {
-            font-size: 12px;
+            font-size: 11px;
             color: #56d364;
         }
 
@@ -187,20 +204,21 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-height: 0;
         }
 
         .messages {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
+            padding: 12px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 12px;
         }
 
         .message {
             max-width: 85%;
-            padding: 12px 16px;
+            padding: 10px 14px;
             border-radius: 12px;
             font-size: 14px;
             line-height: 1.5;
@@ -226,49 +244,50 @@
             background: #0969da;
             color: white;
             align-self: center;
-            font-size: 13px;
+            font-size: 12px;
             text-align: center;
             border-radius: 20px;
-            padding: 8px 16px;
+            padding: 6px 12px;
         }
 
         .welcome {
             text-align: center;
-            padding: 40px 20px;
+            padding: 20px 16px;
             color: #7d8590;
         }
 
         .welcome-icon {
-            font-size: 48px;
+            font-size: 36px;
             color: #58a6ff;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .welcome h2 {
             color: #e6edf3;
             margin-bottom: 8px;
-            font-size: 20px;
+            font-size: 18px;
         }
 
         .welcome p {
-            max-width: 400px;
+            max-width: 350px;
             margin: 0 auto;
-            line-height: 1.6;
+            line-height: 1.5;
+            font-size: 14px;
         }
 
         /* Input Area */
         .input-area {
             border-top: 1px solid #30363d;
-            padding: 16px;
+            padding: 12px;
             background: #161b22;
+            flex-shrink: 0;
         }
 
         .input-container {
             display: flex;
-            gap: 12px;
+            gap: 8px;
             align-items: flex-end;
-            max-width: 1000px;
-            margin: 0 auto;
+            max-width: 100%;
         }
 
         .input-box {
@@ -276,13 +295,14 @@
             background: #0d1117;
             border: 1px solid #30363d;
             border-radius: 8px;
-            padding: 12px;
+            padding: 10px 12px;
             color: #e6edf3;
             font-size: 14px;
             resize: none;
-            min-height: 44px;
-            max-height: 120px;
+            min-height: 40px;
+            max-height: 100px;
             font-family: inherit;
+            line-height: 1.4;
         }
 
         .input-box:focus {
@@ -299,13 +319,14 @@
             color: white;
             border: none;
             border-radius: 8px;
-            padding: 12px 16px;
+            padding: 10px 12px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: background 0.2s;
-            min-width: 44px;
+            min-width: 40px;
+            flex-shrink: 0;
         }
 
         .send-btn:hover:not(:disabled) {
@@ -333,8 +354,8 @@
         }
 
         .typing-dot {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             background: #7d8590;
             border-radius: 50%;
             animation: pulse 1.5s infinite;
@@ -350,8 +371,8 @@
 
         .loading {
             display: inline-block;
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             border: 2px solid rgba(255,255,255,.3);
             border-radius: 50%;
             border-top-color: #fff;
@@ -365,33 +386,58 @@
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .header {
-                padding: 12px;
+                padding: 8px;
             }
 
             .logo {
-                font-size: 16px;
+                font-size: 14px;
+                gap: 4px;
             }
 
             .import-btn {
-                font-size: 12px;
-                padding: 6px 12px;
+                font-size: 11px;
+                padding: 6px 8px;
+                gap: 3px;
+            }
+
+            .repo-info {
+                gap: 6px;
+            }
+
+            .repo-badge {
+                font-size: 10px;
+                padding: 3px 6px;
+                max-width: 120px;
             }
 
             .messages {
-                padding: 16px 12px;
+                padding: 8px;
+                gap: 10px;
             }
 
             .message {
                 max-width: 90%;
-                font-size: 14px;
+                font-size: 13px;
+                padding: 8px 12px;
             }
 
             .input-area {
-                padding: 12px;
+                padding: 8px;
             }
 
             .input-container {
-                gap: 8px;
+                gap: 6px;
+            }
+
+            .input-box {
+                font-size: 13px;
+                padding: 8px 10px;
+                min-height: 36px;
+            }
+
+            .send-btn {
+                padding: 8px 10px;
+                min-width: 36px;
             }
 
             .repo-modal {
@@ -399,15 +445,48 @@
             }
 
             .repo-content {
-                max-height: 90vh;
+                max-height: 85vh;
+            }
+
+            .repo-header {
+                padding: 10px 12px;
+            }
+
+            .repo-title {
+                font-size: 14px;
+            }
+
+            .repo-list {
+                padding: 8px;
+            }
+
+            .repo-item {
+                padding: 10px;
+            }
+
+            .repo-name {
+                font-size: 13px;
+            }
+
+            .repo-desc {
+                font-size: 11px;
             }
 
             .welcome {
-                padding: 20px 12px;
+                padding: 16px 12px;
             }
 
             .welcome-icon {
-                font-size: 36px;
+                font-size: 28px;
+            }
+
+            .welcome h2 {
+                font-size: 16px;
+            }
+
+            .welcome p {
+                font-size: 13px;
+                max-width: 280px;
             }
         }
 
@@ -418,6 +497,56 @@
 
             .header {
                 justify-content: space-between;
+                gap: 8px;
+            }
+
+            .logo {
+                font-size: 13px;
+            }
+
+            .import-btn {
+                font-size: 10px;
+                padding: 5px 8px;
+            }
+
+            .import-btn .fa-github {
+                display: none;
+            }
+
+            .message {
+                max-width: 95%;
+                font-size: 12px;
+            }
+
+            .input-box {
+                font-size: 12px;
+            }
+
+            .welcome h2 {
+                font-size: 15px;
+            }
+
+            .welcome p {
+                font-size: 12px;
+                max-width: 250px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .header {
+                padding: 6px;
+            }
+
+            .messages {
+                padding: 6px;
+            }
+
+            .input-area {
+                padding: 6px;
+            }
+
+            .repo-modal {
+                padding: 8px;
             }
         }
     </style>
@@ -505,13 +634,13 @@
 
             // Close modal
             document.getElementById('closeModal').addEventListener('click', hideRepoModal);
-            document.getElementById('repoModal').addEventListener('click', (e) => {
+            document.getElementById('repoModal').addEventListener('click', function(e) {
                 if (e.target.id === 'repoModal') hideRepoModal();
             });
 
             // Send message
             document.getElementById('sendBtn').addEventListener('click', sendMessage);
-            document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            document.getElementById('messageInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
@@ -538,19 +667,19 @@
                 if (data.success) {
                     displayRepositories(data.repos);
                 } else {
-                    document.getElementById('repoList').innerHTML = `
-                        <div style="text-align: center; padding: 20px; color: #f85149;">
-                            <i class="fas fa-exclamation-triangle"></i><br>
-                            Failed to load repositories:<br>
-                            <small>${data.error}</small>
-                        </div>`;
+                    document.getElementById('repoList').innerHTML = 
+                        '<div style="text-align: center; padding: 20px; color: #f85149;">' +
+                        '<i class="fas fa-exclamation-triangle"></i><br>' +
+                        'Failed to load repositories:<br>' +
+                        '<small>' + data.error + '</small>' +
+                        '</div>';
                 }
             } catch (error) {
-                document.getElementById('repoList').innerHTML = `
-                    <div style="text-align: center; padding: 20px; color: #f85149;">
-                        <i class="fas fa-exclamation-triangle"></i><br>
-                        Error: ${error.message}
-                    </div>`;
+                document.getElementById('repoList').innerHTML = 
+                    '<div style="text-align: center; padding: 20px; color: #f85149;">' +
+                    '<i class="fas fa-exclamation-triangle"></i><br>' +
+                    'Error: ' + error.message +
+                    '</div>';
             }
 
             btn.disabled = false;
@@ -565,51 +694,55 @@
             const container = document.getElementById('repoList');
 
             if (repos.length === 0) {
-                container.innerHTML = `
-                    <div style="text-align: center; padding: 20px; color: #7d8590;">
-                        No repositories found
-                    </div>`;
+                container.innerHTML = 
+                    '<div style="text-align: center; padding: 20px; color: #7d8590;">' +
+                    'No repositories found' +
+                    '</div>';
                 return;
             }
 
-            container.innerHTML = repos.map(repo => `
-                <div class="repo-item" onclick="selectRepository(${JSON.stringify(repo).replace(/"/g, '&quot;')})">
-                    <div class="repo-name">${repo.name}</div>
-                    <div class="repo-desc">${repo.description || 'No description'}</div>
-                    <div class="repo-lang">${repo.language || 'Unknown language'}</div>
-                </div>
-            `).join('');
+            container.innerHTML = repos.map(function(repo) {
+                return '<div class="repo-item" onclick="selectRepository(\'' + 
+                    JSON.stringify(repo).replace(/'/g, "\\'").replace(/"/g, '&quot;') + '\')">' +
+                    '<div class="repo-name">' + repo.name + '</div>' +
+                    '<div class="repo-desc">' + (repo.description || 'No description') + '</div>' +
+                    '<div class="repo-lang">' + (repo.language || 'Unknown language') + '</div>' +
+                    '</div>';
+            }).join('');
         }
 
-        function selectRepository(repo) {
-            selectedRepo = repo;
+        function selectRepository(repoStr) {
+            try {
+                selectedRepo = JSON.parse(repoStr.replace(/&quot;/g, '"'));
 
-            // Update UI
-            const badge = document.getElementById('repoBadge');
-            badge.textContent = repo.name;
-            badge.classList.add('connected');
+                // Update UI
+                const badge = document.getElementById('repoBadge');
+                badge.textContent = selectedRepo.name;
+                badge.classList.add('connected');
 
-            hideRepoModal();
+                hideRepoModal();
 
-            // Clear welcome and add connection message
-            const messages = document.getElementById('messages');
-            messages.innerHTML = `
-                <div class="message system">Connected to repository: ${repo.name}</div>
-                <div class="message assistant">
-                    Hi! I'm now connected to your repository "${repo.name}". 
-                    I can help you create new files, modify existing code, add features, fix bugs, or build complete applications. 
-                    Just describe what you want to do in plain English and I'll handle the coding and repository updates automatically.
-                    <br><br>
-                    What would you like to build or modify today?
-                </div>
-                <div class="typing" id="typing">
-                    <div class="typing-dots">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-                </div>
-            `;
+                // Clear welcome and add connection message
+                const messages = document.getElementById('messages');
+                messages.innerHTML = 
+                    '<div class="message system">Connected to repository: ' + selectedRepo.name + '</div>' +
+                    '<div class="message assistant">' +
+                    'Hi! I\'m now connected to your repository "' + selectedRepo.name + '". ' +
+                    'I can help you create new files, modify existing code, add features, fix bugs, or build complete applications. ' +
+                    'Just describe what you want to do in plain English and I\'ll handle the coding and repository updates automatically.' +
+                    '<br><br>' +
+                    'What would you like to build or modify today?' +
+                    '</div>' +
+                    '<div class="typing" id="typing">' +
+                    '<div class="typing-dots">' +
+                    '<div class="typing-dot"></div>' +
+                    '<div class="typing-dot"></div>' +
+                    '<div class="typing-dot"></div>' +
+                    '</div>' +
+                    '</div>';
+            } catch (error) {
+                console.error('Error parsing repository data:', error);
+            }
         }
 
         async function sendMessage() {
@@ -659,7 +792,9 @@
 
         function isCodeRequest(message) {
             const codeKeywords = ['create', 'add', 'build', 'make', 'write', 'generate', 'fix', 'modify', 'update', 'change', 'improve'];
-            return codeKeywords.some(keyword => message.toLowerCase().includes(keyword));
+            return codeKeywords.some(function(keyword) {
+                return message.toLowerCase().includes(keyword);
+            });
         }
 
         async function handleCodeGeneration(instruction) {
@@ -679,20 +814,20 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    addMessage('system', `✅ Successfully created and committed ${data.fileName} to your repository`);
-                    addMessage('assistant', `Perfect! I've created ${data.fileName} with the requested functionality and committed it directly to your repository. The changes are now live in your repo. You can view the commit or ask me to make further modifications.`);
+                    addMessage('system', '✅ Successfully created and committed ' + data.fileName + ' to your repository');
+                    addMessage('assistant', 'Perfect! I\'ve created ' + data.fileName + ' with the requested functionality and committed it directly to your repository. The changes are now live in your repo. You can view the commit or ask me to make further modifications.');
                 } else {
-                    addMessage('system', `❌ Failed to create file: ${data.error}`);
+                    addMessage('system', '❌ Failed to create file: ' + data.error);
                 }
             } catch (error) {
-                addMessage('system', `❌ Error: ${error.message}`);
+                addMessage('system', '❌ Error: ' + error.message);
             }
         }
 
         function addMessage(type, content) {
             const messages = document.getElementById('messages');
             const message = document.createElement('div');
-            message.className = `message ${type}`;
+            message.className = 'message ' + type;
             message.innerHTML = content.replace(/\n/g, '<br>');
 
             // Remove typing indicator before adding new message
@@ -721,7 +856,7 @@
         function autoResizeTextarea() {
             const textarea = document.getElementById('messageInput');
             textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+            textarea.style.height = Math.min(textarea.scrollHeight, 100) + 'px';
         }
 
         // Expose selectRepository to global scope for onclick handlers
