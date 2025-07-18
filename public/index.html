@@ -551,6 +551,202 @@
             width: 0%;
         }
 
+        /* Styles for Side Panels */
+        .side-panels {
+            width: 300px; /* Adjust as needed */
+            background: rgba(22, 27, 34, 0.95);
+            backdrop-filter: blur(10px);
+            border-left: 1px solid #30363d;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-tabs {
+            display: flex;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .panel-tab {
+            background: none;
+            border: none;
+            color: #7d8590;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-tab.active {
+            color: #c9d1d9;
+            background: #161b22;
+        }
+
+        .panel-tab:hover {
+            color: #c9d1d9;
+        }
+
+        .panel-content {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: none; /* Initially hide all panels */
+        }
+
+        .panel-content.active {
+            display: block; /* Show the active panel */
+        }
+
+        /* CLI Terminal Styles */
+        .cli-terminal {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: 'SF Mono', Monaco, 'Consolas', monospace;
+            font-size: 14px;
+            color: #c9d1d9;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cli-output {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 8px;
+        }
+
+        .cli-line {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 4px;
+        }
+
+        .cli-prompt {
+            color: #58a6ff;
+            margin-right: 6px;
+        }
+
+        .cli-command {
+            color: #ff7b72;
+        }
+
+        .cli-output-line {
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .cli-input-area {
+            display: flex;
+            align-items: center;
+        }
+
+        .cli-input {
+            background: none;
+            border: none;
+            color: #c9d1d9;
+            font-family: 'SF Mono', Monaco, 'Consolas', monospace;
+            font-size: 14px;
+            padding: 4px 0;
+            flex: 1;
+            outline: none;
+        }
+
+        /* Preview Panel Styles */
+        .preview-panel {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            margin-bottom: 8px;
+        }
+
+        .preview-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #c9d1d9;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .preview-btn {
+            background: none;
+            border: none;
+            color: #7d8590;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+            transition: all 0.2s;
+        }
+
+        .preview-btn:hover {
+            color: #c9d1d9;
+        }
+
+        .preview-content {
+            flex: 1;
+            overflow: hidden;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            background: #161b22;
+            position: relative;
+        }
+
+        .preview-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #7d8590;
+            text-align: center;
+        }
+
+        .preview-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Toggle Panels Button */
+        .toggle-panels {
+            position: absolute;
+            top: 50%;
+            right: 0;
+            transform: translateY(-50%);
+            background: rgba(22, 27, 34, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid #30363d;
+            border-radius: 8px 0 0 8px;
+            color: #7d8590;
+            cursor: pointer;
+            padding: 8px 12px;
+            transition: all 0.2s;
+            z-index: 500;
+        }
+
+        .toggle-panels:hover {
+            color: #c9d1d9;
+            background: #21262d;
+        }
+
         @media (max-width: 768px) {
             .header {
                 padding: 12px;
@@ -584,6 +780,16 @@
 
             .message-content {
                 padding: 12px;
+            }
+
+            .main-content {
+                flex-direction: column; /* Stack chat and side panels on smaller screens */
+            }
+
+            .side-panels {
+                width: 100%; /* Take full width */
+                border-left: none;
+                border-top: 1px solid #30363d;
             }
         }
     </style>
@@ -674,7 +880,68 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Side Panels -->
+            <div class="side-panels">
+                <!-- Panel Tabs -->
+                <div class="panel-tabs">
+                    <button class="panel-tab active" id="cliTab">
+                        <i class="fas fa-terminal"></i> CLI
+                    </button>
+                    <button class="panel-tab" id="previewTab">
+                        <i class="fas fa-eye"></i> Preview
+                    </button>
+                </div>
+
+                <!-- CLI Panel -->
+                <div class="panel-content active" id="cliPanel">
+                    <div class="cli-terminal">
+                        <div class="cli-output" id="cliOutput">
+                            <div class="cli-line">
+                                <span class="cli-prompt">$</span>
+                                <span class="cli-command">AI CLI Ready</span>
+                            </div>
+                            <div class="cli-output-line">Type commands or chat with AI directly here</div>
+                            <div class="cli-output-line info">Commands: /help, /status, /generate, /clear</div>
+                        </div>
+                        <div class="cli-input-area">
+                            <span class="cli-prompt">$</span>
+                            <input type="text" class="cli-input" id="cliInput" placeholder="Type command or message..." autocomplete="off">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Panel -->
+                <div class="panel-content" id="previewPanel">
+                    <div class="preview-panel">
+                        <div class="preview-header">
+                            <div class="preview-title">Live Preview</div>
+                            <div class="preview-controls">
+                                <button class="preview-btn" id="refreshPreview">
+                                    <i class="fas fa-redo"></i>
+                                </button>
+                                <button class="preview-btn" id="openExternal">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="preview-content">
+                            <div class="preview-placeholder" id="previewPlaceholder">
+                                <i class="fas fa-eye" style="font-size: 24px;"></i>
+                                <div>Preview will appear here</div>
+                                <div style="font-size: 12px;">Deploy your app to see live preview</div>
+                            </div>
+                            <iframe class="preview-iframe" id="previewIframe" style="display: none;"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- Toggle Panels Button -->
+        <button class="toggle-panels" id="togglePanels" title="Toggle Panels">
+            <i class="fas fa-chevron-left"></i>
+        </button>
     </div>
 
     <!-- Repository Modal -->
@@ -717,6 +984,19 @@
         const typing = document.getElementById('typing');
         const progressBar = document.getElementById('progressBar');
 
+        // New DOM elements for side panels
+        const cliTab = document.getElementById('cliTab');
+        const previewTab = document.getElementById('previewTab');
+        const cliPanel = document.getElementById('cliPanel');
+        const previewPanel = document.getElementById('previewPanel');
+        const cliInput = document.getElementById('cliInput');
+        const cliOutput = document.getElementById('cliOutput');
+        const refreshPreview = document.getElementById('refreshPreview');
+        const openExternal = document.getElementById('openExternal');
+        const previewIframe = document.getElementById('previewIframe');
+        const previewPlaceholder = document.getElementById('previewPlaceholder');
+        const togglePanels = document.getElementById('togglePanels');
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
@@ -733,265 +1013,10 @@
             repoModal.addEventListener('click', (e) => {
                 if (e.target === repoModal) closeRepoModal();
             });
-        }
 
-        function handleKeyDown(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-            }
-        }
-
-        function adjustTextareaHeight() {
-            messageInput.style.height = 'auto';
-            messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
-        }
-
-        async function checkServerStatus() {
-            try {
-                const response = await fetch('/api/health');
-                const data = await response.json();
-
-                if (data.success) {
-                    updateStatus('online', 'Online');
-                } else {
-                    updateStatus('offline', 'Offline');
-                }
-            } catch (error) {
-                updateStatus('offline', 'Offline');
-            }
-        }
-
-        function updateStatus(status, text) {
-            statusIndicator.className = `status-indicator status-${status}`;
-            statusText.textContent = text;
-        }
-
-        function showProgress(percentage) {
-            progressBar.style.width = percentage + '%';
-            if (percentage >= 100) {
-                setTimeout(() => {
-                    progressBar.style.width = '0%';
-                }, 500);
-            }
-        }
-
-        function hideProgress() {
-            progressBar.style.width = '0%';
-        }
-
-        function showTyping() {
-            typing.classList.add('show');
-            messagesArea.scrollTop = messagesArea.scrollHeight;
-            isTyping = true;
-        }
-
-        function hideTyping() {
-            typing.classList.remove('show');
-            isTyping = false;
-        }
-
-        function addMessage(type, content, isUser = false) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${type}-message`;
-
-            const avatarClass = isUser ? 'user-avatar' : `${type}-avatar`;
-            const avatarText = isUser ? 'YOU' : (type === 'error' ? '❌' : type === 'success' ? '✅' : 'AI');
-
-            messageDiv.innerHTML = `
-                <div class="message-avatar ${avatarClass}">${avatarText}</div>
-                <div class="message-content">
-                    <div class="message-text">${content.replace(/\n/g, '<br>')}</div>
-                </div>
-            `;
-
-            messagesArea.appendChild(messageDiv);
-            messagesArea.scrollTop = messagesArea.scrollHeight;
-        }
-
-        function formatMessage(content) {
-            return content
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/`([^`]+)`/g, '<code>$1</code>')
-                .replace(/```([^```]+)```/g, '<pre>$1</pre>')
-                .replace(/\n/g, '<br>');
-        }
-
-        async function handleSendMessage() {
-            if (isTyping) return;
-
-            const message = messageInput.value.trim();
-            if (!message) return;
-
-            // Add user message
-            addMessage('user', message, true);
-            messageInput.value = '';
-            adjustTextareaHeight();
-
-            // Show typing indicator
-            showTyping();
-
-            try {
-                if (message.toLowerCase().includes('generate') || 
-                    message.toLowerCase().includes('create') || 
-                    message.toLowerCase().includes('build')) {
-                    await handleProjectGeneration(message);
-                } else {
-                    await handleChatMessage(message);
-                }
-            } catch (error) {
-                hideTyping();
-                addMessage('error', `❌ **Error**: ${error.message}`);
-            }
-        }
-
-        async function handleProjectGeneration(instruction) {
-            if (!selectedRepo) {
-                hideTyping();
-                addMessage('error', '❌ **Repository Required**\n\nPlease select a GitHub repository first to generate project files.');
-                return;
-            }
-
-            try {
-                showProgress(25);
-
-                const response = await fetch('/api/repo/generate-code', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        owner: selectedRepo.full_name.split('/')[0],
-                        repo: selectedRepo.full_name.split('/')[1],
-                        instruction: instruction
-                    })
-                });
-
-                const result = await response.json();
-                showProgress(75);
-
-                if (result.success) {
-                    const filesList = result.files.map(f => 
-                        `  • **${f.path}** - ${f.description}`
-                    ).join('\n');
-
-                    showProgress(100);
-                    hideTyping();
-
-                    addMessage('success', 
-                        `✅ **${result.action}**\n\n` +
-                        `**Files created/updated:**\n${filesList}\n\n` +
-                        `🚀 **Auto-committed and pushed** to your repository!\n` +
-                        `🎉 Your project is ready to use.`
-                    );
-                } else {
-                    hideTyping();
-                    addMessage('error', `❌ **${result.action || 'Generation failed'}**\n\n${result.error}`);
-                }
-            } catch (error) {
-                hideTyping();
-                addMessage('error', `❌ **Generation Error**\n\n${error.message}`);
-            }
-
-            hideProgress();
-        }
-
-        async function handleChatMessage(message) {
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: message,
-                        selectedRepo: selectedRepo
-                    })
-                });
-
-                const data = await response.json();
-                hideTyping();
-
-                if (data.success) {
-                    addMessage('ai', data.response);
-                } else {
-                    addMessage('error', `❌ **Error**: ${data.error}`);
-                }
-            } catch (error) {
-                hideTyping();
-                addMessage('error', `❌ **Connection Error**: ${error.message}`);
-            }
-        }
-
-        async function openRepoModal() {
-            repoModal.classList.add('show');
-            repoLoading.style.display = 'flex';
-            repoList.innerHTML = '';
-
-            try {
-                const response = await fetch('/api/github/repos');
-                const data = await response.json();
-
-                repoLoading.style.display = 'none';
-
-                if (data.success && data.repos.length > 0) {
-                    data.repos.forEach(repo => {
-                        const repoDiv = document.createElement('div');
-                        repoDiv.className = 'repo-item';
-                        repoDiv.innerHTML = `
-                            <div class="repo-item-header">
-                                <div class="repo-name">${repo.name}</div>
-                            </div>
-                            <div class="repo-desc">${repo.description || 'No description available'}</div>
-                            <div class="repo-meta">
-                                <div class="repo-lang">
-                                    <div class="lang-dot"></div>
-                                    ${repo.language || 'Unknown'}
-                                </div>
-                                <div>${repo.private ? 'Private' : 'Public'}</div>
-                                <div>Updated: ${new Date(repo.updated_at).toLocaleDateString()}</div>
-                            </div>
-                        `;
-
-                        repoDiv.addEventListener('click', () => selectRepository(repo));
-                        repoList.appendChild(repoDiv);
-                    });
-                } else {
-                    repoList.innerHTML = '<div class="loading">No repositories found or GitHub token not configured.</div>';
-                }
-            } catch (error) {
-                repoLoading.style.display = 'none';
-                repoList.innerHTML = `<div class="loading">Error loading repositories: ${error.message}</div>`;
-            }
-        }
-
-        function closeRepoModal() {
-            repoModal.classList.remove('show');
-        }
-
-        async function selectRepository(repo) {
-            try {
-                const response = await fetch('/api/repo/select', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ repo: repo })
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    selectedRepo = data.repository;
-                    repoText.textContent = selectedRepo.name;
-                    closeRepoModal();
-
-                    addMessage('success', 
-                        `✅ **Connected to ${selectedRepo.full_name}**\n\n` +
-                        `Now I can help you work on this repository!\n` +
-                        `**Total conversations**: ${data.memory.totalConversations}`
-                    );
-                } else {
-                    addMessage('error', `❌ **Connection Failed**: ${data.error}`);
-                }
-            } catch (error) {
-                addMessage('error', `❌ **Selection Error**: ${error.message}`);
-            }
-        }
-    </script>
-</body>
-</html>
+            // Side panel event listeners
+            cliTab.addEventListener('click', () => showPanel('cli'));
+            previewTab.addEventListener('click', () => showPanel('preview'));
+            cliInput.addEventListener('keydown', handleCliInput);
+            refreshPreview.addEventListener('click', refreshPreviewPanel);
+([^```]+)
