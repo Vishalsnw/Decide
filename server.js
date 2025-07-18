@@ -65,6 +65,12 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' })); // Reduced from 50mb
 app.use(express.static('public'));
 
+// Middleware to ensure all API responses are JSON
+app.use('/api/*', (req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Global error caught:', err);
@@ -588,17 +594,31 @@ app.post('/api/clear-conversation', async (req, res) => {
 // GitHub - List Repositories
 app.get('/api/github/repos', async (req, res) => {
   try {
-    if (!octokit) {
+    // Always return JSON, even on errors
+    res.setHeader('Content-Type', 'application/json');
+    
+    if (!process.env.GITHUB_TOKEN) {
       return res.status(400).json({ 
         success: false, 
-        error: 'GitHub token not configured' 
+        error: 'GitHub token not configured. Please add GITHUB_TOKEN to your environment variables.' 
       });
     }
 
+    if (!octokit) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'GitHub client not initialized' 
+      });
+    }
+
+    console.log('Fetching GitHub repositories...');
+    
     const response = await octokit.rest.repos.listForAuthenticatedUser({
       sort: 'updated',
       per_page: 50
     });
+
+    console.log(`Found ${response.data.length} repositories`);
 
     res.json({
       success: true,
@@ -611,11 +631,30 @@ app.get('/api/github/repos', async (req, res) => {
         private: repo.private
       }))
     });
+    
   } catch (error) {
     console.error('GitHub repos error:', error);
+    
+    // Ensure we always return JSON
+    res.setHeader('Content-Type', 'application/json');
+    
+    if (error.status === 401) {
+      return res.status(401).json({ 
+        success: false, 
+        error: 'Invalid GitHub token. Please check your GITHUB_TOKEN.' 
+      });
+    }
+    
+    if (error.status === 403) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'GitHub API rate limit exceeded or insufficient permissions.' 
+      });
+    }
+    
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to fetch repositories' 
+      error: `Failed to fetch repositories: ${error.message}` 
     });
   }
 });
