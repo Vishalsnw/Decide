@@ -613,11 +613,11 @@ app.post('/api/clear-conversation', async (req, res) => {
 
 // GitHub - List Repositories
 app.get('/api/github/repos', async (req, res) => {
-  // Ensure JSON response even if other middleware fails
+  // Force JSON response headers immediately
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache');
   
   try {
-    
     if (!process.env.GITHUB_TOKEN) {
       return res.status(400).json({ 
         success: false, 
@@ -626,7 +626,7 @@ app.get('/api/github/repos', async (req, res) => {
     }
 
     if (!octokit) {
-      return res.status(400).json({ 
+      return res.status(500).json({ 
         success: false, 
         error: 'GitHub client not initialized' 
       });
@@ -641,7 +641,7 @@ app.get('/api/github/repos', async (req, res) => {
 
     console.log(`Found ${response.data.length} repositories`);
 
-    res.json({
+    return res.json({
       success: true,
       repos: response.data.map(repo => ({
         name: repo.name,
@@ -656,7 +656,7 @@ app.get('/api/github/repos', async (req, res) => {
   } catch (error) {
     console.error('GitHub repos error:', error);
     
-    // Ensure we always return JSON
+    // Force JSON headers again in case of error
     res.setHeader('Content-Type', 'application/json');
     
     if (error.status === 401) {
@@ -673,7 +673,7 @@ app.get('/api/github/repos', async (req, res) => {
       });
     }
     
-    res.status(500).json({ 
+    return res.status(500).json({ 
       success: false, 
       error: `Failed to fetch repositories: ${error.message}` 
     });
@@ -954,7 +954,12 @@ app.use('/api/*', (req, res) => {
 // Start server with enhanced error handling for Replit
 console.log(`🚀 Attempting to start server on port ${PORT}...`);
 
-const server = app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', (err) => {
+  if (err) {
+    console.error('❌ Failed to start server:', err);
+    process.exit(1);
+  }
+  
   console.log(`✅ AI Coding Assistant running on http://0.0.0.0:${PORT}`);
   console.log(`🌍 Replit deployment ready - accessible via webview`);
   console.log('📋 Features available:');
@@ -982,9 +987,11 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 server.on('error', (err) => {
   console.error('❌ Server error occurred:', err);
   if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use`);
+    console.error(`❌ Port ${PORT} is already in use - killing existing process`);
+    process.exit(1);
   } else {
     console.error('❌ Server error:', err.message);
+    process.exit(1);
   }
 });
 
