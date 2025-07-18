@@ -16,7 +16,7 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "fuser -k 5000/tcp || true"
+args = "pkill -f \"node server.js\" || true"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"

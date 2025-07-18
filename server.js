@@ -66,11 +66,20 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' })); // Reduced from 50mb
 app.use(express.static('public'));
 
-// Middleware to ensure all API responses are JSON
-app.use('/api/*', (req, res, next) => {
+// Middleware to ensure all API responses are JSON - must be before routes
+app.use('/api', (req, res, next) => {
   res.setHeader('Content-Type', 'application/json');
   next();
 });
+
+// Add startup validation
+if (!process.env.DEEPSEEK_API_KEY) {
+  console.warn('⚠️  DEEPSEEK_API_KEY not found - AI features will be limited');
+}
+
+if (!process.env.GITHUB_TOKEN) {
+  console.warn('⚠️  GITHUB_TOKEN not found - GitHub features will be disabled');
+}
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -604,9 +613,10 @@ app.post('/api/clear-conversation', async (req, res) => {
 
 // GitHub - List Repositories
 app.get('/api/github/repos', async (req, res) => {
+  // Ensure JSON response even if other middleware fails
+  res.setHeader('Content-Type', 'application/json');
+  
   try {
-    // Always return JSON, even on errors
-    res.setHeader('Content-Type', 'application/json');
     
     if (!process.env.GITHUB_TOKEN) {
       return res.status(400).json({ 
@@ -930,6 +940,15 @@ Return only the code without markdown formatting.`;
       error: error.response?.data?.error || error.message || 'Failed to generate project'
     });
   }
+});
+
+// Catch-all for API routes that don't exist
+app.use('/api/*', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.status(404).json({
+    success: false,
+    error: `API endpoint not found: ${req.path}`
+  });
 });
 
 // Start server with enhanced error handling for Replit
