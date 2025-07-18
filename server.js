@@ -246,6 +246,71 @@ app.post('/api/generate-code', async (req, res) => {
   }
 });
 
+// Fix and commit endpoint
+app.post('/api/fix-and-commit', async (req, res) => {
+  try {
+    const { error, description } = req.body;
+    
+    if (!error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Error description is required'
+      });
+    }
+
+    if (process.env.DEEPSEEK_API_KEY) {
+      try {
+        const response = await axios.post('https://api.deepseek.com/v1/chat/completions', {
+          model: 'deepseek-coder',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a code debugging assistant. Analyze the error and provide a clear fix with explanation. Focus on the root cause and provide actionable solutions.'
+            },
+            {
+              role: 'user',
+              content: `I'm getting this error: ${error}\n\nAdditional context: ${description || 'No additional context provided'}\n\nPlease help me fix this issue.`
+            }
+          ],
+          max_tokens: 1500,
+          temperature: 0.3
+        }, {
+          headers: {
+            'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const solution = response.data.choices[0].message.content;
+        
+        res.json({
+          success: true,
+          solution: solution,
+          timestamp: new Date().toISOString(),
+          error_analyzed: error
+        });
+      } catch (aiError) {
+        console.error('DeepSeek API error:', aiError.response?.data || aiError.message);
+        res.status(500).json({
+          success: false,
+          error: 'Fix analysis service temporarily unavailable'
+        });
+      }
+    } else {
+      res.json({
+        success: false,
+        error: 'Error fixing requires DEEPSEEK_API_KEY to be configured'
+      });
+    }
+  } catch (error) {
+    console.error('Fix and commit error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error analysis failed'
+    });
+  }
+});
+
 // Default route
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -255,7 +320,7 @@ app.get('/', (req, res) => {
 app.use('/api/*', (req, res) => {
   res.status(404).json({
     success: false,
-    error: `API endpoint not found: ${req.path}`
+    error: `API endpoint not found: ${req.originalUrl}`
   });
 });
 

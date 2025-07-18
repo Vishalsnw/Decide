@@ -1,11 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI CLI with Preview - Replit Style</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>AI CLI Interface</title>
     <style>
         * {
             margin: 0;
@@ -16,66 +14,54 @@
         body {
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             background: #1e1e1e;
-            color: #d4d4d4;
+            color: #cccccc;
             height: 100vh;
-            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
         .container {
             display: flex;
-            height: 100vh;
             flex-direction: column;
+            height: 100vh;
         }
 
-        /* Header Bar */
         .header {
             background: #2d2d30;
-            border-bottom: 1px solid #3e3e42;
             padding: 8px 16px;
+            border-bottom: 1px solid #3e3e42;
             display: flex;
-            align-items: center;
             justify-content: space-between;
-            min-height: 40px;
-            flex-shrink: 0;
+            align-items: center;
         }
 
         .header-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
 
         .logo {
-            color: #4fc3f7;
             font-weight: bold;
-            font-size: 14px;
+            color: #4fc3f7;
         }
 
         .file-tabs {
             display: flex;
-            gap: 2px;
+            gap: 8px;
         }
 
         .tab {
-            background: #1e1e1e;
-            border: 1px solid #3e3e42;
-            border-bottom: none;
-            padding: 6px 12px;
+            padding: 4px 12px;
+            background: #3c3c3c;
+            border-radius: 4px;
             font-size: 12px;
             cursor: pointer;
-            border-radius: 4px 4px 0 0;
-            transition: all 0.2s;
         }
 
         .tab.active {
-            background: #252526;
-            border-color: #007acc;
-            color: #ffffff;
-        }
-
-        .tab:hover:not(.active) {
-            background: #2d2d30;
-            color: #cccccc;
+            background: #007acc;
+            color: white;
         }
 
         .header-right {
@@ -83,75 +69,87 @@
             align-items: center;
             gap: 8px;
             font-size: 12px;
-            color: #cccccc;
         }
 
         .status-indicator {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #4fc3f7;
+            background: #4caf50;
         }
 
-        /* Terminal Area */
         .terminal {
             flex: 1;
-            background: #1e1e1e;
             padding: 16px;
             overflow-y: auto;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #1e1e1e;
             font-size: 14px;
             line-height: 1.4;
         }
 
         .terminal-line {
             margin-bottom: 4px;
-            word-wrap: break-word;
+            display: flex;
+            flex-wrap: wrap;
         }
 
         .prompt {
             color: #4fc3f7;
+            margin-right: 8px;
         }
 
         .command {
-            color: #d4d4d4;
+            color: #ffffff;
         }
 
         .output {
             color: #cccccc;
+            margin-left: 16px;
         }
 
-        .error {
-            color: #f48771;
+        .output-line {
+            margin-bottom: 4px;
+            margin-left: 16px;
         }
 
-        /* Input Area */
+        .output-line.success {
+            color: #4caf50;
+        }
+
+        .output-line.error {
+            color: #f44336;
+        }
+
+        .output-line.info {
+            color: #ff9800;
+        }
+
         .input-area {
-            background: #252526;
-            border-top: 1px solid #3e3e42;
-            padding: 12px 16px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            padding: 16px;
+            background: #252526;
+            border-top: 1px solid #3e3e42;
         }
 
-        .prompt-symbol {
+        .prompt-input {
             color: #4fc3f7;
-            font-weight: bold;
+            margin-right: 8px;
+            font-family: inherit;
         }
 
         .command-input {
             flex: 1;
             background: transparent;
             border: none;
-            color: #d4d4d4;
+            color: #ffffff;
             font-family: inherit;
             font-size: 14px;
             outline: none;
         }
 
         .command-input::placeholder {
-            color: #6a6a6a;
+            color: #666666;
         }
     </style>
 </head>
@@ -169,7 +167,7 @@
                 <span>Connected</span>
             </div>
         </div>
-        
+
         <div class="terminal" id="terminal">
             <div class="terminal-line">
                 <span class="prompt">AI CLI ></span>
@@ -179,509 +177,76 @@
                 <span class="output">Type /help for available commands</span>
             </div>
         </div>
-        
+
         <div class="input-area">
-            <span class="prompt-symbol">></span>
-            <input type="text" class="command-input" placeholder="Type your command..." id="commandInput">
+            <span class="prompt-input">AI CLI ></span>
+            <input type="text" class="command-input" id="commandInput" placeholder="Type your command here..." autocomplete="off">
         </div>
     </div>
 
     <script>
-        const terminal = document.getElementById('terminal');
-        const commandInput = document.getElementById('commandInput');
-
-        commandInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                const command = this.value.trim();
-                if (command) {
-                    addTerminalLine('prompt', `AI CLI > ${command}`);
-                    processCommand(command);
-                    this.value = '';
-                }
-            }
-        });
-
-        function addTerminalLine(type, text) {
-            const line = document.createElement('div');
-            line.className = `terminal-line ${type}`;
-            line.textContent = text;
-            terminal.appendChild(line);
-            terminal.scrollTop = terminal.scrollHeight;
-        }
-
-        function processCommand(command) {
-            if (command.startsWith('/')) {
-                addTerminalLine('output', `Processing command: ${command}`);
-            } else {
-                addTerminalLine('output', `Chat message: ${command}`);
-            }
-        }
-    </script>
-</body>
-</html>active) {
-            background: #2d2d30;
-        }
-
-        /* Main Content Area */
-        .main-content {
-            flex: 1;
-            display: flex;
-            min-height: 0;
-        }
-
-        /* CLI Panel */
-        .cli-panel {
-            width: 50%;
-            background: #1e1e1e;
-            border-right: 1px solid #3e3e42;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .cli-header {
-            background: #252526;
-            padding: 8px 12px;
-            border-bottom: 1px solid #3e3e42;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .cli-header i {
-            color: #4fc3f7;
-        }
-
-        .terminal {
-            flex: 1;
-            background: #0c0c0c;
-            color: #cccccc;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 14px;
-            padding: 12px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-
-        .terminal::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .terminal::-webkit-scrollbar-track {
-            background: #1e1e1e;
-        }
-
-        .terminal::-webkit-scrollbar-thumb {
-            background: #424242;
-            border-radius: 4px;
-        }
-
-        .prompt-line {
-            display: flex;
-            align-items: center;
-            margin-top: 8px;
-        }
-
-        .prompt {
-            color: #4fc3f7;
-            margin-right: 8px;
-        }
-
-        .cli-input {
-            flex: 1;
-            background: transparent;
-            border: none;
-            color: #cccccc;
-            font-family: inherit;
-            font-size: inherit;
-            outline: none;
-        }
-
-        .output-line {
-            margin: 4px 0;
-            line-height: 1.4;
-        }
-
-        .output-line.command {
-            color: #4fc3f7;
-        }
-
-        .output-line.success {
-            color: #4caf50;
-        }
-
-        .output-line.error {
-            color: #f44336;
-        }
-
-        .output-line.info {
-            color: #ff9800;
-        }
-
-        /* Preview Panel */
-        .preview-panel {
-            width: 50%;
-            background: #252526;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .preview-header {
-            background: #2d2d30;
-            padding: 8px 12px;
-            border-bottom: 1px solid #3e3e42;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .preview-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .preview-title i {
-            color: #4fc3f7;
-        }
-
-        .preview-url {
-            background: #1e1e1e;
-            border: 1px solid #3e3e42;
-            border-radius: 4px;
-            padding: 4px 8px;
-            font-size: 11px;
-            color: #cccccc;
-            min-width: 200px;
-        }
-
-        .preview-content {
-            flex: 1;
-            background: #ffffff;
-            position: relative;
-        }
-
-        .preview-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            background: #ffffff;
-        }
-
-        .preview-loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: #666;
-        }
-
-        .preview-loading i {
-            font-size: 24px;
-            margin-bottom: 8px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        /* Resize Handle */
-        .resize-handle {
-            width: 4px;
-            background: #3e3e42;
-            cursor: col-resize;
-            position: relative;
-            transition: background 0.2s;
-        }
-
-        .resize-handle:hover {
-            background: #007acc;
-        }
-
-        /* Status Bar */
-        .status-bar {
-            background: #007acc;
-            color: white;
-            padding: 4px 12px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            min-height: 24px;
-        }
-
-        .status-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .status-right {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #4caf50;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* Code Viewer */
-        .code-viewer {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 13px;
-            padding: 16px;
-            overflow: auto;
-            height: 100%;
-            white-space: pre;
-        }
-
-        .code-viewer::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .code-viewer::-webkit-scrollbar-track {
-            background: #1e1e1e;
-        }
-
-        .code-viewer::-webkit-scrollbar-thumb {
-            background: #424242;
-            border-radius: 4px;
-        }
-
-        /* Syntax highlighting */
-        .keyword { color: #569cd6; }
-        .string { color: #ce9178; }
-        .comment { color: #6a9955; }
-        .function { color: #dcdcaa; }
-        .variable { color: #9cdcfe; }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .main-content {
-                flex-direction: column;
-            }
-            
-            .cli-panel, .preview-panel {
-                width: 100%;
-                height: 50%;
-            }
-            
-            .resize-handle {
-                height: 4px;
-                width: 100%;
-                cursor: row-resize;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="header-left">
-                <div class="logo">
-                    <i class="fas fa-terminal"></i> AI CLI
-                </div>
-                <div class="file-tabs">
-                    <div class="tab active" data-view="terminal">
-                        <i class="fas fa-terminal"></i> Terminal
-                    </div>
-                    <div class="tab" data-view="preview">
-                        <i class="fas fa-globe"></i> Preview
-                    </div>
-                    <div class="tab" data-view="code">
-                        <i class="fas fa-code"></i> Generated Code
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <div class="main-content">
-            <!-- CLI Panel -->
-            <div class="cli-panel">
-                <div class="cli-header">
-                    <i class="fas fa-terminal"></i>
-                    AI Coding Assistant CLI
-                </div>
-                <div class="terminal" id="terminal">
-                    <div class="output-line">🤖 AI Coding Assistant CLI v1.0</div>
-                    <div class="output-line">Connected to: http://localhost:5000</div>
-                    <div class="output-line">Type /help for available commands</div>
-                    <div class="output-line"></div>
-                </div>
-                <div class="prompt-line">
-                    <span class="prompt">AI CLI ></span>
-                    <input type="text" class="cli-input" id="cliInput" placeholder="Enter command or message..." autocomplete="off">
-                </div>
-            </div>
-
-            <!-- Resize Handle -->
-            <div class="resize-handle" id="resizeHandle"></div>
-
-            <!-- Preview Panel -->
-            <div class="preview-panel">
-                <div class="preview-header">
-                    <div class="preview-title">
-                        <i class="fas fa-globe"></i>
-                        <span id="previewTitle">Web Preview</span>
-                    </div>
-                    <div class="preview-url" id="previewUrl">http://localhost:5000</div>
-                </div>
-                <div class="preview-content" id="previewContent">
-                    <div class="preview-loading">
-                        <i class="fas fa-globe"></i>
-                        <div>Preview will appear here</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Status Bar -->
-        <div class="status-bar">
-            <div class="status-left">
-                <div class="status-indicator">
-                    <div class="status-dot"></div>
-                    Server Online
-                </div>
-                <span id="repoStatus">No repository selected</span>
-            </div>
-            <div class="status-right">
-                <span id="commandCount">0 commands</span>
-                <span>AI Ready</span>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        class ReplitCLI {
+        class CLIInterface {
             constructor() {
                 this.terminal = document.getElementById('terminal');
-                this.input = document.getElementById('cliInput');
-                this.previewContent = document.getElementById('previewContent');
-                this.previewUrl = document.getElementById('previewUrl');
-                this.commandCount = 0;
+                this.commandInput = document.getElementById('commandInput');
                 this.currentRepo = null;
                 this.generatedCode = '';
-                
-                this.setupEventListeners();
-                this.setupResize();
-                this.checkServerStatus();
+                this.initializeEventListeners();
             }
 
-            setupEventListeners() {
-                // CLI input
-                this.input.addEventListener('keypress', (e) => {
+            initializeEventListeners() {
+                this.commandInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
-                        this.processCommand(this.input.value.trim());
+                        this.handleCommand();
                     }
                 });
-
-                // Tab switching
-                document.querySelectorAll('.tab').forEach(tab => {
-                    tab.addEventListener('click', () => {
-                        this.switchView(tab.dataset.view);
-                    });
-                });
-
-                // Auto-focus input
-                this.input.focus();
             }
 
-            setupResize() {
-                const handle = document.getElementById('resizeHandle');
-                const cliPanel = document.querySelector('.cli-panel');
-                const previewPanel = document.querySelector('.preview-panel');
-                let isResizing = false;
+            addTerminalLine(prompt, command, isOutput = false) {
+                const line = document.createElement('div');
+                line.className = 'terminal-line';
 
-                handle.addEventListener('mousedown', (e) => {
-                    isResizing = true;
-                    document.addEventListener('mousemove', resize);
-                    document.addEventListener('mouseup', stopResize);
-                });
-
-                function resize(e) {
-                    if (!isResizing) return;
-                    const containerWidth = document.querySelector('.main-content').offsetWidth;
-                    const leftWidth = (e.clientX / containerWidth) * 100;
-                    const rightWidth = 100 - leftWidth;
-                    
-                    if (leftWidth > 20 && rightWidth > 20) {
-                        cliPanel.style.width = leftWidth + '%';
-                        previewPanel.style.width = rightWidth + '%';
-                    }
+                if (isOutput) {
+                    line.innerHTML = `<span class="output">${command}</span>`;
+                } else {
+                    line.innerHTML = `<span class="prompt">${prompt}</span><span class="command">${command}</span>`;
                 }
 
-                function stopResize() {
-                    isResizing = false;
-                    document.removeEventListener('mousemove', resize);
-                    document.removeEventListener('mouseup', stopResize);
-                }
+                this.terminal.appendChild(line);
+                this.terminal.scrollTop = this.terminal.scrollHeight;
             }
 
-            async checkServerStatus() {
-                try {
-                    const response = await fetch('/api/health');
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        this.addOutput('✅ Server connected successfully', 'success');
-                        this.updatePreview();
-                    }
-                } catch (error) {
-                    this.addOutput('❌ Failed to connect to server', 'error');
-                }
+            addOutput(text, type = '') {
+                const line = document.createElement('div');
+                line.className = `output-line ${type}`;
+                line.textContent = text;
+                this.terminal.appendChild(line);
+                this.terminal.scrollTop = this.terminal.scrollHeight;
             }
 
-            async processCommand(command) {
+            async handleCommand() {
+                const command = this.commandInput.value.trim();
                 if (!command) return;
 
-                this.addOutput(`AI CLI > ${command}`, 'command');
-                this.input.value = '';
-                this.commandCount++;
-                document.getElementById('commandCount').textContent = `${this.commandCount} commands`;
+                this.addTerminalLine('AI CLI >', command);
+                this.commandInput.value = '';
 
                 if (command.startsWith('/')) {
-                    await this.handleSystemCommand(command);
+                    await this.handleSlashCommand(command);
                 } else {
                     await this.handleChatMessage(command);
                 }
-
-                this.scrollToBottom();
-                this.input.focus();
             }
 
-            async handleSystemCommand(command) {
+            async handleSlashCommand(command) {
                 const [cmd, ...args] = command.slice(1).split(' ');
 
                 switch (cmd.toLowerCase()) {
                     case 'help':
                         this.showHelp();
                         break;
-                    case 'clear':
-                        this.clearTerminal();
+                    case 'status':
+                        await this.showStatus();
                         break;
                     case 'repos':
                         await this.listRepos();
@@ -689,32 +254,44 @@
                     case 'select':
                         await this.selectRepo(args.join(' '));
                         break;
-                    case 'code':
+                    case 'generate':
                         await this.generateCode(args.join(' '));
                         break;
-                    case 'preview':
-                        this.updatePreview();
+                    case 'fix':
+                        await this.fixAndCommit(args.join(' '));
                         break;
-                    case 'status':
-                        await this.showStatus();
+                    case 'clear':
+                        this.clearTerminal();
                         break;
                     default:
-                        this.addOutput(`Unknown command: ${cmd}`, 'error');
+                        this.addOutput(`❌ Unknown command: ${cmd}`, 'error');
                         this.addOutput('Type /help for available commands', 'info');
                 }
             }
 
-            async handleChatMessage(message) {
-                this.addOutput('🤖 AI is thinking...', 'info');
+            showHelp() {
+                this.addOutput('📋 Available Commands:', 'info');
+                this.addOutput('/help - Show this help message', '');
+                this.addOutput('/status - Check system status', '');
+                this.addOutput('/repos - List GitHub repositories', '');
+                this.addOutput('/select <repo> - Select a repository', '');
+                this.addOutput('/generate <prompt> - Generate code', '');
+                this.addOutput('/fix <error> - Fix and commit error', '');
+                this.addOutput('/clear - Clear terminal', '');
+                this.addOutput('', '');
+                this.addOutput('💬 Chat: Type any message to chat with AI', 'info');
+            }
 
+            async handleChatMessage(message) {
                 try {
                     const response = await fetch('/api/chat', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
                         body: JSON.stringify({
                             message: message,
-                            selectedRepo: this.currentRepo,
-                            sessionId: 'cli-session'
+                            selectedRepo: this.currentRepo
                         })
                     });
 
@@ -722,34 +299,13 @@
 
                     if (data.success) {
                         this.addOutput('🤖 AI Assistant:', 'info');
-                        this.addOutput(data.response, 'success');
+                        this.addOutput(data.response, '');
                     } else {
-                        this.addOutput(`❌ Error: ${data.error}`, 'error');
+                        this.addOutput(`❌ Chat failed: ${data.error}`, 'error');
                     }
                 } catch (error) {
-                    this.addOutput(`❌ Connection error: ${error.message}`, 'error');
+                    this.addOutput(`❌ Error: ${error.message}`, 'error');
                 }
-            }
-
-            showHelp() {
-                const help = `
-Available Commands:
-  /help     - Show this help message
-  /clear    - Clear terminal
-  /repos    - List GitHub repositories  
-  /select   - Select a repository
-  /code     - Generate code with AI
-  /preview  - Update preview window
-  /status   - Check server status
-
-Or just type your message to chat with AI`;
-                
-                this.addOutput(help, 'info');
-            }
-
-            clearTerminal() {
-                this.terminal.innerHTML = '';
-                this.addOutput('Terminal cleared', 'info');
             }
 
             async listRepos() {
@@ -757,75 +313,111 @@ Or just type your message to chat with AI`;
                     const response = await fetch('/api/github/repos');
                     const data = await response.json();
 
-                    if (data.success) {
-                        this.addOutput('📁 Available repositories:', 'info');
-                        data.repos.forEach((repo, index) => {
-                            this.addOutput(`  ${index + 1}. ${repo.full_name} - ${repo.description || 'No description'}`, '');
+                    if (data.success && data.repos.length > 0) {
+                        this.addOutput('📁 Your Repositories:', 'info');
+                        data.repos.forEach(repo => {
+                            this.addOutput(`${repo.name} - ${repo.description || 'No description'}`, '');
                         });
+                        this.addOutput('', '');
+                        this.addOutput('Use /select <repo-name> to select a repository', 'info');
                     } else {
-                        this.addOutput(`❌ ${data.error}`, 'error');
+                        this.addOutput(data.message || '❌ No repositories found', 'error');
                     }
                 } catch (error) {
-                    this.addOutput(`❌ Failed to fetch repositories: ${error.message}`, 'error');
+                    this.addOutput(`❌ Error: ${error.message}`, 'error');
                 }
             }
 
             async selectRepo(repoName) {
                 if (!repoName) {
-                    this.addOutput('Usage: /select owner/repo-name', 'error');
+                    this.addOutput('❌ Please specify a repository name', 'error');
                     return;
                 }
 
                 try {
-                    const response = await fetch('/api/repo/select', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ repo: { full_name: repoName } })
-                    });
-
+                    const response = await fetch('/api/github/repos');
                     const data = await response.json();
 
                     if (data.success) {
-                        this.currentRepo = data.repository;
-                        this.addOutput(`✅ Connected to ${data.repository.full_name}`, 'success');
-                        document.getElementById('repoStatus').textContent = `📁 ${data.repository.name}`;
-                        this.updatePreview();
-                    } else {
-                        this.addOutput(`❌ ${data.error}`, 'error');
+                        const repo = data.repos.find(r => 
+                            r.name.toLowerCase() === repoName.toLowerCase() ||
+                            r.full_name.toLowerCase() === repoName.toLowerCase()
+                        );
+
+                        if (repo) {
+                            this.currentRepo = repo;
+                            this.addOutput(`✅ Selected repository: ${repo.full_name}`, 'success');
+                        } else {
+                            this.addOutput(`❌ Repository '${repoName}' not found`, 'error');
+                        }
                     }
                 } catch (error) {
-                    this.addOutput(`❌ Connection error: ${error.message}`, 'error');
+                    this.addOutput(`❌ Error: ${error.message}`, 'error');
                 }
             }
 
             async generateCode(prompt) {
                 if (!prompt) {
-                    this.addOutput('Usage: /code <description>', 'error');
+                    this.addOutput('❌ Please provide a prompt for code generation', 'error');
                     return;
                 }
 
-                this.addOutput('🎯 Generating code...', 'info');
-
                 try {
+                    this.addOutput('🔄 Generating code...', 'info');
+
                     const response = await fetch('/api/generate-code', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
                         body: JSON.stringify({
                             prompt: prompt,
-                            language: 'javascript',
-                            repoName: this.currentRepo?.full_name || 'cli-session'
+                            language: 'javascript'
                         })
                     });
 
                     const data = await response.json();
 
                     if (data.success) {
-                        this.generatedCode = data.code;
                         this.addOutput('✅ Code generated successfully!', 'success');
-                        this.addOutput('Switch to "Generated Code" tab to view', 'info');
-                        this.updateCodeView();
+                        this.addOutput('Generated Code:', 'info');
+                        this.addOutput(data.code, '');
                     } else {
                         this.addOutput(`❌ Code generation failed: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    this.addOutput(`❌ Error: ${error.message}`, 'error');
+                }
+            }
+
+            async fixAndCommit(errorDescription) {
+                if (!errorDescription) {
+                    this.addOutput('❌ Please provide an error description', 'error');
+                    return;
+                }
+
+                try {
+                    this.addOutput('🔄 Analyzing error...', 'info');
+
+                    const response = await fetch('/api/fix-and-commit', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            error: errorDescription,
+                            description: `Repository: ${this.currentRepo?.full_name || 'Not selected'}`
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        this.addOutput('✅ Error analysis complete!', 'success');
+                        this.addOutput('💡 Solution:', 'info');
+                        this.addOutput(data.solution, '');
+                    } else {
+                        this.addOutput(`❌ Error analysis failed: ${data.error}`, 'error');
                     }
                 } catch (error) {
                     this.addOutput(`❌ Error: ${error.message}`, 'error');
@@ -842,80 +434,29 @@ Or just type your message to chat with AI`;
                     this.addOutput(`GitHub: ${data.github ? '✅ Connected' : '❌ Not configured'}`, '');
                     this.addOutput(`AI: ${data.deepseek ? '✅ Ready' : '❌ Not configured'}`, '');
                     this.addOutput(`Port: ${data.port}`, '');
+                    this.addOutput(`Current Repo: ${this.currentRepo ? this.currentRepo.full_name : 'None selected'}`, '');
                 } catch (error) {
-                    this.addOutput('❌ Failed to check status', 'error');
+                    this.addOutput(`❌ Error: ${error.message}`, 'error');
                 }
             }
 
-            updatePreview() {
-                const iframe = this.previewContent.querySelector('iframe');
-                if (iframe) {
-                    iframe.src = iframe.src; // Refresh
-                } else {
-                    this.previewContent.innerHTML = `
-                        <iframe class="preview-iframe" src="http://localhost:5000" 
-                                onload="this.style.display='block'">
-                        </iframe>
-                    `;
-                }
-            }
-
-            updateCodeView() {
-                // This will be implemented when switching to code view
-            }
-
-            switchView(view) {
-                // Update active tab
-                document.querySelectorAll('.tab').forEach(tab => {
-                    tab.classList.toggle('active', tab.dataset.view === view);
-                });
-
-                // Update preview content based on view
-                switch (view) {
-                    case 'preview':
-                        this.updatePreview();
-                        document.getElementById('previewTitle').textContent = 'Web Preview';
-                        break;
-                    case 'code':
-                        this.previewContent.innerHTML = `
-                            <div class="code-viewer">${this.highlightCode(this.generatedCode || '// No code generated yet\n// Use /code command to generate code')}</div>
-                        `;
-                        document.getElementById('previewTitle').textContent = 'Generated Code';
-                        break;
-                    case 'terminal':
-                        this.previewContent.innerHTML = `
-                            <div class="preview-loading">
-                                <i class="fas fa-terminal"></i>
-                                <div>Terminal view active</div>
-                            </div>
-                        `;
-                        document.getElementById('previewTitle').textContent = 'Terminal Focus';
-                        break;
-                }
-            }
-
-            highlightCode(code) {
-                return code
-                    .replace(/\b(function|const|let|var|if|else|for|while|return|class|import|export|async|await)\b/g, '<span class="keyword">$1</span>')
-                    .replace(/"([^"]*)"/g, '<span class="string">"$1"</span>')
-                    .replace(/\/\/.*$/gm, '<span class="comment">$&</span>')
-                    .replace(/\b([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g, '<span class="function">$1</span>(');
-            }
-
-            addOutput(text, type = '') {
-                const line = document.createElement('div');
-                line.className = `output-line ${type}`;
-                line.textContent = text;
-                this.terminal.appendChild(line);
-            }
-
-            scrollToBottom() {
-                this.terminal.scrollTop = this.terminal.scrollHeight;
+            clearTerminal() {
+                this.terminal.innerHTML = `
+                    <div class="terminal-line">
+                        <span class="prompt">AI CLI ></span>
+                        <span class="command">Welcome to AI Coding Assistant CLI</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="output">Type /help for available commands</span>
+                    </div>
+                `;
             }
         }
 
-        // Initialize CLI
-        const cli = new ReplitCLI();
+        // Initialize CLI when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new CLIInterface();
+        });
     </script>
 </body>
 </html>
