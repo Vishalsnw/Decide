@@ -975,12 +975,7 @@ app.use('/api/*', (req, res) => {
 // Start server with enhanced error handling for Replit
 console.log(`🚀 Attempting to start server on port ${PORT}...`);
 
-const server = app.listen(PORT, '0.0.0.0', (err) => {
-  if (err) {
-    console.error('❌ Failed to start server:', err);
-    process.exit(1);
-  }
-  
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ AI Coding Assistant running on http://0.0.0.0:${PORT}`);
   console.log(`🌍 Replit deployment ready - accessible via webview`);
   console.log('📋 Features available:');
@@ -1009,23 +1004,7 @@ server.on('error', (err) => {
   console.error('❌ Server error occurred:', err);
   if (err.code === 'EADDRINUSE') {
     console.error(`❌ Port ${PORT} is already in use`);
-    console.log('🔄 Attempting to kill processes and restart...');
-    
-    // Try to kill existing processes
-    const { exec } = require('child_process');
-    exec(`pkill -f "node server.js"`, (killError) => {
-      if (killError) {
-        console.log('No existing processes found to kill');
-      } else {
-        console.log('✅ Killed existing processes');
-      }
-      
-      // Retry starting server after 2 seconds
-      setTimeout(() => {
-        console.log('🔄 Retrying server startup...');
-        process.exit(1);
-      }, 2000);
-    });
+    process.exit(1);
   } else {
     console.error('❌ Server error:', err.message);
     process.exit(1);
