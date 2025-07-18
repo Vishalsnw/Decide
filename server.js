@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -647,16 +646,6 @@ app.post('/api/clear-conversation', (req, res) => {
 // Default route
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// CLI route
-app.get('/cli', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'cli.html'));
-});
-
-// Alternative CLI route
-app.get('/cli.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'cli.html'));
 });
 
 // Catch-all for API routes

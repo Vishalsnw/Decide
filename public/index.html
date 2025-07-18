@@ -980,7 +980,7 @@
                                 • **Mobile Responsive** - Fully optimized for mobile devices
 
                                 🔧 **Auto-Fix Active**: When you mention errors or issues, I'll automatically detect and fix them!
-                                
+
                                 Select a repository above or just start describing what you want to build!
                             </div>
                         </div>
@@ -1021,68 +1021,9 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Side Panels -->
-            <div class="side-panels">
-                <!-- Panel Tabs -->
-                <div class="panel-tabs">
-                    <button class="panel-tab active" id="cliTab">
-                        <i class="fas fa-terminal"></i> CLI
-                    </button>
-                    <button class="panel-tab" id="previewTab">
-                        <i class="fas fa-eye"></i> Preview
-                    </button>
-                </div>
-
-                <!-- CLI Panel -->
-                <div class="panel-content active" id="cliPanel">
-                    <div class="cli-terminal">
-                        <div class="cli-output" id="cliOutput">
-                            <div class="cli-line">
-                                <span class="cli-prompt">$</span>
-                                <span class="cli-command">AI CLI Ready</span>
-                            </div>
-                            <div class="cli-output-line">Type commands or chat with AI directly here</div>
-                            <div class="cli-output-line info">Commands: /help, /status, /generate, /clear</div>
-                        </div>
-                        <div class="cli-input-area">
-                            <span class="cli-prompt">$</span>
-                            <input type="text" class="cli-input" id="cliInput" placeholder="Type command or message..." autocomplete="off">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Preview Panel -->
-                <div class="panel-content" id="previewPanel">
-                    <div class="preview-panel">
-                        <div class="preview-header">
-                            <div class="preview-title">Live Preview</div>
-                            <div class="preview-controls">
-                                <button class="preview-btn" id="refreshPreview">
-                                    <i class="fas fa-redo"></i>
-                                </button>
-                                <button class="preview-btn" id="openExternal">
-                                    <i class="fas fa-external-link-alt"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="preview-content">
-                            <div class="preview-placeholder" id="previewPlaceholder">
-                                <i class="fas fa-eye" style="font-size: 24px;"></i>
-                                <div>Preview will appear here</div>
-                                <div style="font-size: 12px;">Deploy your app to see live preview</div>
-                            </div>
-                            <iframe class="preview-iframe" id="previewIframe" style="display: none;"></iframe>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- Toggle Panels Button -->
-        <button class="toggle-panels" id="togglePanels" title="Toggle Panels">
-            <i class="fas fa-chevron-left"></i>
-        </button>
+        
     </div>
 
     <!-- Repository Modal -->
@@ -1122,24 +1063,23 @@
         const repoModal = document.getElementById('repoModal');
         const modalClose = document.getElementById('modalClose');
         const repoList = document.getElementById('repoList');
-        const repoLoading = document.getElementById('repoLoading');
-        const statusIndicator = document.getElementById('statusIndicator');
+        const repoLoading = document.getElementById('repoLoading');const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
         const typing = document.getElementById('typing');
         const progressBar = document.getElementById('progressBar');
 
-        // New DOM elements for side panels
-        const cliTab = document.getElementById('cliTab');
-        const previewTab = document.getElementById('previewTab');
-        const cliPanel = document.getElementById('cliPanel');
-        const previewPanel = document.getElementById('previewPanel');
-        const cliInput = document.getElementById('cliInput');
-        const cliOutput = document.getElementById('cliOutput');
-        const refreshPreview = document.getElementById('refreshPreview');
-        const openExternal = document.getElementById('openExternal');
-        const previewIframe = document.getElementById('previewIframe');
-        const previewPlaceholder = document.getElementById('previewPlaceholder');
-        const togglePanels = document.getElementById('togglePanels');
+        // Remove side panels related variables
+        //const cliTab = document.getElementById('cliTab');
+        //const previewTab = document.getElementById('previewTab');
+        //const cliPanel = document.getElementById('cliPanel');
+        //const previewPanel = document.getElementById('previewPanel');
+        //const cliInput = document.getElementById('cliInput');
+        //const cliOutput = document.getElementById('cliOutput');
+        //const refreshPreview = document.getElementById('refreshPreview');
+        //const openExternal = document.getElementById('openExternal');
+        //const previewIframe = document.getElementById('previewIframe');
+        //const previewPlaceholder = document.getElementById('previewPlaceholder');
+        //const togglePanels = document.getElementById('togglePanels');
         const autoFixIndicator = document.getElementById('autoFixIndicator');
         const fixNotification = document.getElementById('fixNotification');
 
@@ -1148,13 +1088,13 @@
             setupEventListeners();
             checkServerStatus();
             adjustTextareaHeight();
-            
-            // Initialize preview with current server
-            const currentUrl = window.location.origin;
-            previewIframe.src = currentUrl;
-            
-            // Show CLI panel by default
-            showPanel('cli');
+
+            // Remove preview initialization
+            //const currentUrl = window.location.origin;
+            //previewIframe.src = currentUrl;
+
+            // Remove panel selection
+            //showPanel('cli');
         });
 
         function setupEventListeners() {
@@ -1167,15 +1107,17 @@
                 if (e.target === repoModal) closeRepoModal();
             });
 
-            // Side panel event listeners
-            cliTab.addEventListener('click', () => showPanel('cli'));
-            previewTab.addEventListener('click', () => showPanel('preview'));
-            cliInput.addEventListener('keydown', handleCliInput);
-            refreshPreview.addEventListener('click', refreshPreviewPanel);
-            openExternal.addEventListener('click', openExternalPreview);
-            togglePanels.addEventListener('click', toggleSidePanels);
+            // Remove side panel event listeners
+            //cliTab.addEventListener('click', () => showPanel('cli'));
+            //previewTab.addEventListener('click', () => showPanel('preview'));
+            //cliInput.addEventListener('keydown', handleCliInput);
+            //refreshPreview.addEventListener('click', refreshPreviewPanel);
+            //openExternal.addEventListener('click', openExternalPreview);
+            //togglePanels.addEventListener('click', toggleSidePanels);
         }
 
+        // Remove show panel function
+        /*
         function showPanel(panelName) {
             // Update tabs
             document.querySelectorAll('.panel-tab').forEach(tab => tab.classList.remove('active'));
@@ -1189,7 +1131,10 @@
                 previewPanel.classList.add('active');
             }
         }
+        */
 
+        // Remove CLI input handler
+        /*
         function handleCliInput(event) {
             if (event.key === 'Enter') {
                 const input = cliInput.value.trim();
@@ -1200,7 +1145,10 @@
                 }
             }
         }
+        */
 
+        // Remove add CLI line function
+        /*
         function addCliLine(text, type = 'output') {
             const line = document.createElement('div');
             line.className = 'cli-line';
@@ -1220,7 +1168,10 @@
             cliOutput.appendChild(line);
             cliOutput.scrollTop = cliOutput.scrollHeight;
         }
+        */
 
+        // Remove process CLI command function
+        /*
         async function processCliCommand(command) {
             const cmd = command.toLowerCase().trim();
 
@@ -1285,7 +1236,10 @@
                 await sendChatFromCli(command);
             }
         }
+        */
 
+        // Remove generate code from CLI
+        /*
         async function generateCodeFromCli(prompt) {
             try {
                 addCliLine('🔄 Generating code...');
@@ -1306,7 +1260,10 @@
                 addCliLine(`❌ Error: ${error.message}`);
             }
         }
+        */
 
+        // Remove send chat from CLI
+        /*
         async function sendChatFromCli(message) {
             try {
                 addCliLine('🤖 AI is thinking...', 'info');
@@ -1333,7 +1290,10 @@
                 addCliLine(`❌ Error: ${error.message}`, 'error');
             }
         }
+        */
 
+        // Remove fix error from CLI
+        /*
         async function fixErrorFromCli(errorDesc) {
             try {
                 addCliLine('🔧 Analyzing and fixing error...', 'info');
@@ -1353,7 +1313,7 @@
                     addCliLine('✅ Error analysis complete!', 'success');
                     addCliLine('📝 Solution:', 'info');
                     addCliLine(data.solution);
-                    
+
                     if (data.applied) {
                         addCliLine(`🎉 Fix automatically applied to files!`, 'success');
                         addCliLine(`📁 Files modified: ${data.filesChanged.join(', ')}`, 'info');
@@ -1369,32 +1329,44 @@
                 addCliLine(`❌ Error: ${error.message}`, 'error');
             }
         }
+        */
 
+        // Remove load preview function
+        /*
         function loadPreview() {
             const currentUrl = window.location.origin;
             previewIframe.src = currentUrl;
             previewIframe.style.display = 'block';
             previewPlaceholder.style.display = 'none';
-            
+
             // Switch to preview panel
             showPanel('preview');
             addCliLine('✅ Preview loaded in Preview panel');
         }
+        */
 
+        // Remove refresh preview
+        /*
         function refreshPreviewPanel() {
             const iframe = previewIframe;
             if (iframe.src) {
                 iframe.src = iframe.src;
             }
         }
+        */
 
+        // Remove open external
+        /*
         function openExternalPreview() {
             const iframe = previewIframe;
             if (iframe.src) {
                 window.open(iframe.src, '_blank');
             }
         }
+        */
 
+        // Remove toggle panels
+        /*
         function toggleSidePanels() {
             const panels = document.querySelector('.side-panels');
             const isHidden = panels.style.display === 'none';
@@ -1404,6 +1376,7 @@
                 '<i class="fas fa-chevron-left"></i>' : 
                 '<i class="fas fa-chevron-right"></i>';
         }
+        */
 
         function adjustTextareaHeight() {
             messageInput.style.height = 'auto';
@@ -1439,8 +1412,8 @@
                 if (containsError && autoFixMode) {
                     // Auto-fix mode: try to fix the error automatically
                     showAutoFixIndicator();
-                    addCliLine('🔧 Auto-fix mode activated...', 'info');
-                    
+                    //addCliLine('🔧 Auto-fix mode activated...', 'info');
+
                     response = await fetch('/api/fix-and-commit', {
                         method: 'POST',
                         headers: {
@@ -1456,21 +1429,23 @@
 
                     data = await response.json();
                     hideAutoFixIndicator();
-                    
+
                     if (data.success) {
                         addMessage(data.solution, 'ai');
-                        
+
                         if (data.applied) {
                             showFixNotification();
                             addMessage(`✅ Fix automatically applied to: ${data.filesChanged.join(', ')}`, 'success');
-                            addCliLine(`🎉 Auto-fix applied to ${data.filesChanged.length} files!`, 'success');
-                            
+                            //addCliLine(`🎉 Auto-fix applied to ${data.filesChanged.length} files!`, 'success');
+
                             // Refresh preview if files were modified
+                            /*
                             if (data.filesChanged.some(file => file.includes('.html') || file.includes('.js') || file.includes('.css'))) {
                                 setTimeout(() => {
                                     refreshPreviewPanel();
                                 }, 1000);
                             }
+                            */
                         } else if (data.fixedCode) {
                             addMessage('💡 Generated fix code (manual application needed):', 'ai');
                             addMessage(data.fixedCode, 'ai');
@@ -1489,7 +1464,7 @@
                             })
                         });
                         data = await response.json();
-                        
+
                         if (data.success) {
                             addMessage(data.response, 'ai');
                         } else {
@@ -1511,14 +1486,14 @@
                     });
 
                     data = await response.json();
-                    
+
                     if (data.success) {
                         addMessage(data.response, 'ai');
-                        
+
                         // Show memory context if available
-                        if (data.memoryContext) {
-                            addCliLine(`💭 Memory: ${data.memoryContext.totalConversations} messages in session`);
-                        }
+                        //if (data.memoryContext) {
+                        //    addCliLine(`💭 Memory: ${data.memoryContext.totalConversations} messages in session`);
+                        //}
                     } else {
                         addMessage(`Error: ${data.error}`, 'error');
                     }
