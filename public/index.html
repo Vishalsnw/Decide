@@ -972,16 +972,21 @@
                                 <strong>🤖 AI Coding Assistant Ready!</strong>
 
                                 I can help you with:
-                                • **Auto-Fix Mode** - I automatically detect and fix errors for you
-                                • **Code Generation** - Build apps, features, and components
-                                • **Smart Error Fixing** - Just paste your error and I'll apply fixes automatically
-                                • **Code Review** - Get suggestions and improvements
-                                • **GitHub Integration** - Work directly with your repositories
-                                • **Mobile Responsive** - Fully optimized for mobile devices
+                                • **🚀 Create Complete Web Apps** - Just describe your idea and I'll build the entire app
+                                • **🔧 Auto-Fix & Commit** - Paste any error and I'll automatically fix and apply changes
+                                • **📱 Mobile-Optimized** - All apps are responsive and mobile-friendly
+                                • **⚡ Smart Code Generation** - Build features, components, and full applications
+                                • **🐛 Instant Error Resolution** - Automatic detection, fixing, and file application
+                                • **📂 GitHub Integration** - Work directly with your repositories
+                                • **💾 Auto-Commit** - Changes are applied automatically without manual intervention
 
-                                🔧 **Auto-Fix Active**: When you mention errors or issues, I'll automatically detect and fix them!
+                                **💡 Just say things like:**
+                                • "Create a todo app with dark mode"
+                                • "Build a weather dashboard"
+                                • "Make a chat application"
+                                • Or paste any error to get it fixed instantly!
 
-                                Select a repository above or just start describing what you want to build!
+                                Start by describing your web app idea or paste an error to fix!
                             </div>
                         </div>
                     </div>
@@ -1399,9 +1404,12 @@
             messageInput.value = '';
             adjustTextareaHeight();
 
-            // Check if message contains error keywords for auto-fix
-            const errorKeywords = ['error', 'bug', 'issue', 'problem', 'broken', 'not working', 'fail', 'crash', 'exception'];
+            // Check message type for smart routing
+            const errorKeywords = ['error', 'bug', 'issue', 'problem', 'broken', 'not working', 'fail', 'crash', 'exception', 'fix'];
+            const webappKeywords = ['create app', 'build app', 'make app', 'web app', 'website', 'create website', 'build website', 'app idea'];
+            
             const containsError = errorKeywords.some(keyword => message.toLowerCase().includes(keyword));
+            const isWebAppRequest = webappKeywords.some(keyword => message.toLowerCase().includes(keyword));
 
             // Show typing indicator
             showTyping();
@@ -1409,10 +1417,45 @@
             try {
                 let response, data;
 
-                if (containsError && autoFixMode) {
+                if (isWebAppRequest && !containsError) {
+                    // Web app creation mode
+                    showAutoFixIndicator();
+                    const indicator = document.getElementById('autoFixIndicator');
+                    indicator.innerHTML = '<i class="fas fa-cog fa-spin"></i> Creating app...';
+
+                    response = await fetch('/api/create-webapp', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            idea: message,
+                            description: `User request: ${message}`,
+                            sessionId: sessionId
+                        })
+                    });
+
+                    data = await response.json();
+                    hideAutoFixIndicator();
+
+                    if (data.success) {
+                        addMessage(data.solution, 'ai');
+
+                        if (data.created && data.filesCreated.length > 0) {
+                            showFixNotification();
+                            const notification = document.getElementById('fixNotification');
+                            notification.innerHTML = '<i class="fas fa-check"></i> Web app created successfully!';
+                            
+                            addMessage(`🎉 Web app created successfully!\n\nFiles created:\n${data.filesCreated.map(f => `• ${f}`).join('\n')}\n\nYour app is ready! Click the Run button to start it.`, 'success');
+                        }
+                    } else {
+                        addMessage(`❌ Web app creation failed: ${data.error}`, 'error');
+                    }
+                } else if (containsError) {
                     // Auto-fix mode: try to fix the error automatically
                     showAutoFixIndicator();
-                    //addCliLine('🔧 Auto-fix mode activated...', 'info');
+                    const indicator = document.getElementById('autoFixIndicator');
+                    indicator.innerHTML = '<i class="fas fa-cog fa-spin"></i> Auto-fixing...';
 
                     response = await fetch('/api/fix-and-commit', {
                         method: 'POST',
@@ -1421,7 +1464,7 @@
                         },
                         body: JSON.stringify({
                             error: message,
-                            action: 'fix_and_apply',
+                            action: 'auto_fix',
                             description: `Auto-fix request: ${message}`,
                             sessionId: sessionId
                         })
@@ -1433,19 +1476,9 @@
                     if (data.success) {
                         addMessage(data.solution, 'ai');
 
-                        if (data.applied) {
+                        if (data.applied && data.filesChanged.length > 0) {
                             showFixNotification();
-                            addMessage(`✅ Fix automatically applied to: ${data.filesChanged.join(', ')}`, 'success');
-                            //addCliLine(`🎉 Auto-fix applied to ${data.filesChanged.length} files!`, 'success');
-
-                            // Refresh preview if files were modified
-                            /*
-                            if (data.filesChanged.some(file => file.includes('.html') || file.includes('.js') || file.includes('.css'))) {
-                                setTimeout(() => {
-                                    refreshPreviewPanel();
-                                }, 1000);
-                            }
-                            */
+                            addMessage(`✅ Fix automatically applied!\n\nFiles modified:\n${data.filesChanged.map(f => `• ${f}`).join('\n')}\n\nThe issue should now be resolved.`, 'success');
                         } else if (data.fixedCode) {
                             addMessage('💡 Generated fix code (manual application needed):', 'ai');
                             addMessage(data.fixedCode, 'ai');
@@ -1489,11 +1522,6 @@
 
                     if (data.success) {
                         addMessage(data.response, 'ai');
-
-                        // Show memory context if available
-                        //if (data.memoryContext) {
-                        //    addCliLine(`💭 Memory: ${data.memoryContext.totalConversations} messages in session`);
-                        //}
                     } else {
                         addMessage(`Error: ${data.error}`, 'error');
                     }

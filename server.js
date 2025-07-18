@@ -44,7 +44,7 @@ function saveMemory(memory) {
 
 function addToMemory(sessionId, message, response, repo = null) {
   const memory = loadMemory();
-  
+
   if (!memory.conversations[sessionId]) {
     memory.conversations[sessionId] = {
       messages: [],
@@ -53,15 +53,15 @@ function addToMemory(sessionId, message, response, repo = null) {
       lastActive: new Date().toISOString()
     };
   }
-  
+
   memory.conversations[sessionId].messages.push({
     timestamp: new Date().toISOString(),
     user: message,
     ai: response
   });
-  
+
   memory.conversations[sessionId].lastActive = new Date().toISOString();
-  
+
   saveMemory(memory);
   return memory.conversations[sessionId];
 }
@@ -69,9 +69,9 @@ function addToMemory(sessionId, message, response, repo = null) {
 function getMemoryContext(sessionId) {
   const memory = loadMemory();
   const conversation = memory.conversations[sessionId];
-  
+
   if (!conversation) return null;
-  
+
   const recentMessages = conversation.messages.slice(-5);
   return {
     totalConversations: Object.keys(memory.conversations).length,
@@ -126,7 +126,7 @@ app.post('/api/chat', async (req, res) => {
     // Get memory context for better AI responses
     const memoryContext = getMemoryContext(sessionId);
     let contextualPrompt = message;
-    
+
     if (memoryContext && memoryContext.recentMessages.length > 0) {
       const recentContext = memoryContext.recentMessages.slice(-2)
         .map(msg => `User: ${msg.user}\nAI: ${msg.ai}`)
@@ -159,10 +159,10 @@ app.post('/api/chat', async (req, res) => {
         });
 
         const aiResponse = response.data.choices[0].message.content;
-        
+
         // Save to memory
         const conversationContext = addToMemory(sessionId, message, aiResponse, selectedRepo);
-        
+
         res.json({
           success: true,
           response: aiResponse,
@@ -177,10 +177,10 @@ app.post('/api/chat', async (req, res) => {
       } catch (aiError) {
         console.error('DeepSeek API error:', aiError.response?.data || aiError.message);
         const fallbackResponse = `I'm having trouble connecting to the AI service right now. Here's what I can help with based on your message: "${message}"\n\nPlease try again or rephrase your question.`;
-        
+
         // Still save to memory even with fallback
         addToMemory(sessionId, message, fallbackResponse, selectedRepo);
-        
+
         res.json({
           success: true,
           response: fallbackResponse,
@@ -191,10 +191,10 @@ app.post('/api/chat', async (req, res) => {
     } else {
       // Fallback response without API key
       const fallbackResponse = `I received your message: "${message}"\n\nTo enable full AI features, please add your DEEPSEEK_API_KEY to the environment variables.`;
-      
+
       // Save to memory
       addToMemory(sessionId, message, fallbackResponse, selectedRepo);
-      
+
       res.json({
         success: true,
         response: fallbackResponse,
@@ -257,7 +257,7 @@ app.get('/api/github/repos', async (req, res) => {
 // Repository selection endpoint
 app.post('/api/repo/select', (req, res) => {
   const { repo } = req.body;
-  
+
   if (!repo || !repo.full_name) {
     return res.status(400).json({
       success: false,
@@ -281,7 +281,7 @@ app.post('/api/repo/select', (req, res) => {
 app.post('/api/generate-code', async (req, res) => {
   try {
     const { prompt, language = 'javascript' } = req.body;
-    
+
     if (!prompt) {
       return res.status(400).json({
         success: false,
@@ -313,7 +313,7 @@ app.post('/api/generate-code', async (req, res) => {
         });
 
         const generatedCode = response.data.choices[0].message.content;
-        
+
         res.json({
           success: true,
           code: generatedCode,
@@ -346,7 +346,7 @@ app.post('/api/generate-code', async (req, res) => {
 app.post('/api/repo/generate-code', async (req, res) => {
   try {
     const { prompt, language = 'javascript' } = req.body;
-    
+
     if (!prompt) {
       return res.status(400).json({
         success: false,
@@ -378,7 +378,7 @@ app.post('/api/repo/generate-code', async (req, res) => {
         });
 
         const generatedCode = response.data.choices[0].message.content;
-        
+
         res.json({
           success: true,
           code: generatedCode,
@@ -411,7 +411,7 @@ app.post('/api/repo/generate-code', async (req, res) => {
 app.post('/api/fix-and-commit', async (req, res) => {
   try {
     const { error, description, action = 'analyze', filePath, sessionId = 'default' } = req.body;
-    
+
     if (!error) {
       return res.status(400).json({
         success: false,
@@ -433,7 +433,7 @@ FIXED_CODE: [The exact corrected code]
 FILE_PATH: [The file path that needs to be fixed]
 
 Be specific and provide working code that fixes the issue. Include the complete file content with the fix applied.`;
-          
+
           userPrompt = `Fix this error and provide the corrected code: ${error}\n\nContext: ${description || 'No additional context'}\n\nFile path: ${filePath || 'Not specified'}\n\nI need the actual fixed code that I can apply to my files.`;
         } else {
           systemPrompt = 'You are a code debugging assistant. Analyze the error and provide a clear fix with explanation. Focus on the root cause and provide actionable solutions.';
@@ -462,7 +462,7 @@ Be specific and provide working code that fixes the issue. Include the complete 
         });
 
         const solution = response.data.choices[0].message.content;
-        
+
         // Save error fix to memory
         const memory = loadMemory();
         memory.errorFixes.push({
@@ -474,79 +474,93 @@ Be specific and provide working code that fixes the issue. Include the complete 
           sessionId: sessionId
         });
         saveMemory(memory);
-        
-        // If this is a fix_and_apply action, try to extract and apply the fixed code
+
+        // Enhanced file application for auto-fixes
         let fixedCode = null;
         let filesChanged = [];
         let applied = false;
-        
-        if (action === 'fix_and_apply') {
-          // Enhanced pattern matching for code extraction
-          const codeMatch = solution.match(/FIXED_CODE:\s*([\s\S]*?)(?=\n\n|FILE_PATH|$)/);
-          const filePathMatch = solution.match(/FILE_PATH:\s*(.+)/);
-          
-          if (codeMatch) {
-            fixedCode = codeMatch[1].trim();
-            const targetFile = filePathMatch ? filePathMatch[1].trim() : filePath;
-            
-            if (targetFile && fixedCode) {
-              try {
-                // Apply the fix to the file
-                const fullPath = path.join(__dirname, targetFile);
-                const directory = path.dirname(fullPath);
-                
-                // Create directory if it doesn't exist
-                if (!fs.existsSync(directory)) {
-                  fs.mkdirSync(directory, { recursive: true });
+
+        if (action === 'auto_fix' || action === 'fix_and_apply') {
+          // Parse the new FILES_TO_MODIFY format
+          const filesPattern = /FILES_TO_MODIFY:\s*([\s\S]*?)(?=\n\n|$)/;
+          const filesMatch = solution.match(filesPattern);
+
+          if (filesMatch) {
+            const filesSection = filesMatch[1];
+            const fileMatches = filesSection.match(/- FILE: ([^\n]+)\s+CONTENT: ([\s\S]*?)(?=- FILE:|$)/g);
+
+            if (fileMatches) {
+              for (const fileMatch of fileMatches) {
+                const [, filePath, content] = fileMatch.match(/- FILE: ([^\n]+)\s+CONTENT: ([\s\S]*?)$/);
+
+                if (filePath && content) {
+                  try {
+                    const cleanPath = filePath.trim();
+                    const cleanContent = content.trim();
+                    const fullPath = path.join(__dirname, cleanPath);
+                    const directory = path.dirname(fullPath);
+
+                    // Create directory if it doesn't exist
+                    if (!fs.existsSync(directory)) {
+                      fs.mkdirSync(directory, { recursive: true });
+                    }
+
+                    // Write the file
+                    fs.writeFileSync(fullPath, cleanContent);
+                    filesChanged.push(cleanPath);
+                    applied = true;
+                  } catch (fileError) {
+                    console.error(`Error applying fix to ${filePath}:`, fileError);
+                  }
                 }
-                
-                // Apply fix to existing files or create new ones
-                if (fs.existsSync(fullPath) || targetFile.startsWith('public/') || targetFile.endsWith('.js') || targetFile.endsWith('.html') || targetFile.endsWith('.css')) {
-                  fs.writeFileSync(fullPath, fixedCode);
-                  filesChanged.push(targetFile);
-                  applied = true;
-                }
-              } catch (fileError) {
-                console.error('Error applying fix:', fileError);
               }
             }
           }
-          
-          // If no FIXED_CODE format found, try to extract code from solution
+
+          // Fallback: try to extract from code blocks if new format fails
           if (!applied && solution.includes('```')) {
             const codeBlocks = solution.match(/```[\s\S]*?```/g);
             if (codeBlocks && codeBlocks.length > 0) {
-              // Use the first code block
-              fixedCode = codeBlocks[0].replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim();
-              
-              // Try to determine file from context
-              let targetFile = filePath;
-              if (!targetFile) {
-                if (solution.includes('server.js') || solution.includes('express')) {
-                  targetFile = 'server.js';
-                } else if (solution.includes('index.html') || solution.includes('HTML')) {
-                  targetFile = 'public/index.html';
-                } else if (solution.includes('cli.js') || solution.includes('CLI')) {
-                  targetFile = 'cli.js';
+              for (let i = 0; i < codeBlocks.length; i++) {
+                const code = codeBlocks[i].replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim();
+
+                // Smart file detection
+                let targetFile = filePath;
+                if (!targetFile) {
+                  if (code.includes('express') || code.includes('app.listen')) {
+                    targetFile = 'server.js';
+                  } else if (code.includes('<!DOCTYPE html') || code.includes('<html')) {
+                    targetFile = 'public/index.html';
+                  } else if (code.includes('#!/usr/bin/env node') || solution.includes('CLI')) {
+                    targetFile = 'cli.js';
+                  } else if (code.includes('body {') || code.includes('css')) {
+                    targetFile = 'public/style.css';
+                  } else if (code.includes('function') || code.includes('const ')) {
+                    targetFile = `app${i > 0 ? i : ''}.js`;
+                  }
                 }
-              }
-              
-              if (targetFile && fixedCode) {
-                try {
-                  const fullPath = path.join(__dirname, targetFile);
-                  if (fs.existsSync(fullPath)) {
-                    fs.writeFileSync(fullPath, fixedCode);
+
+                if (targetFile && code) {
+                  try {
+                    const fullPath = path.join(__dirname, targetFile);
+                    const directory = path.dirname(fullPath);
+
+                    if (!fs.existsSync(directory)) {
+                      fs.mkdirSync(directory, { recursive: true });
+                    }
+
+                    fs.writeFileSync(fullPath, code);
                     filesChanged.push(targetFile);
                     applied = true;
+                  } catch (fileError) {
+                    console.error('Error applying auto-extracted fix:', fileError);
                   }
-                } catch (fileError) {
-                  console.error('Error applying auto-extracted fix:', fileError);
                 }
               }
             }
           }
         }
-        
+
         res.json({
           success: true,
           solution: solution,
@@ -584,7 +598,7 @@ app.get('/api/memory', (req, res) => {
   try {
     const { sessionId } = req.query;
     const memory = loadMemory();
-    
+
     if (sessionId) {
       const conversation = memory.conversations[sessionId];
       res.json({
@@ -613,7 +627,7 @@ app.post('/api/clear-conversation', (req, res) => {
   try {
     const { sessionId } = req.body;
     const memory = loadMemory();
-    
+
     if (sessionId && memory.conversations[sessionId]) {
       delete memory.conversations[sessionId];
       saveMemory(memory);
