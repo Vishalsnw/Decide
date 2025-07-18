@@ -75,6 +75,151 @@
 
         .tab:hover:not(.active) {
             background: #2d2d30;
+            color: #cccccc;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #cccccc;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4fc3f7;
+        }
+
+        /* Terminal Area */
+        .terminal {
+            flex: 1;
+            background: #1e1e1e;
+            padding: 16px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .terminal-line {
+            margin-bottom: 4px;
+            word-wrap: break-word;
+        }
+
+        .prompt {
+            color: #4fc3f7;
+        }
+
+        .command {
+            color: #d4d4d4;
+        }
+
+        .output {
+            color: #cccccc;
+        }
+
+        .error {
+            color: #f48771;
+        }
+
+        /* Input Area */
+        .input-area {
+            background: #252526;
+            border-top: 1px solid #3e3e42;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .prompt-symbol {
+            color: #4fc3f7;
+            font-weight: bold;
+        }
+
+        .command-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #d4d4d4;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .command-input::placeholder {
+            color: #6a6a6a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <span class="logo">🤖 AI CLI</span>
+                <div class="file-tabs">
+                    <div class="tab active">Terminal</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-indicator"></div>
+                <span>Connected</span>
+            </div>
+        </div>
+        
+        <div class="terminal" id="terminal">
+            <div class="terminal-line">
+                <span class="prompt">AI CLI ></span>
+                <span class="command">Welcome to AI Coding Assistant CLI</span>
+            </div>
+            <div class="terminal-line">
+                <span class="output">Type /help for available commands</span>
+            </div>
+        </div>
+        
+        <div class="input-area">
+            <span class="prompt-symbol">></span>
+            <input type="text" class="command-input" placeholder="Type your command..." id="commandInput">
+        </div>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const commandInput = document.getElementById('commandInput');
+
+        commandInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const command = this.value.trim();
+                if (command) {
+                    addTerminalLine('prompt', `AI CLI > ${command}`);
+                    processCommand(command);
+                    this.value = '';
+                }
+            }
+        });
+
+        function addTerminalLine(type, text) {
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.textContent = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function processCommand(command) {
+            if (command.startsWith('/')) {
+                addTerminalLine('output', `Processing command: ${command}`);
+            } else {
+                addTerminalLine('output', `Chat message: ${command}`);
+            }
+        }
+    </script>
+</body>
+</html>active) {
+            background: #2d2d30;
         }
 
         /* Main Content Area */

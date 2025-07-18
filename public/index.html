@@ -801,7 +801,7 @@
             messageDiv.innerHTML = `
                 <div class="message-avatar ${avatarClass}">${avatarText}</div>
                 <div class="message-content">
-                    <div class="message-text">${formatMessage(content)}</div>
+                    <div class="message-text">${content.replace(/\n/g, '<br>')}</div>
                 </div>
             `;
 

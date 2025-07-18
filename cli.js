@@ -55,6 +55,13 @@ class AICodingCLI {
     }
   }
 
+  cleanup() {
+    if (this.rl) {
+      this.rl.close();
+    }
+    process.exit(0);
+  }
+
   async checkServerHealth() {
     try {
       const response = await axios.get(`${this.config.serverUrl}/api/health`);
@@ -216,8 +223,7 @@ class AICodingCLI {
           
         case 'exit':
           console.log(`${colors.cyan}Goodbye! 👋${colors.reset}`);
-          this.rl.close();
-          process.exit(0);
+          this.cleanup();
           break;
           
         default:
@@ -274,12 +280,17 @@ class AICodingCLI {
 // Handle CTRL+C gracefully
 process.on('SIGINT', () => {
   console.log(`\n${colors.cyan}Goodbye! 👋${colors.reset}`);
-  process.exit(0);
+  if (module.exports.instance) {
+    module.exports.instance.cleanup();
+  } else {
+    process.exit(0);
+  }
 });
 
 // Start CLI if run directly
 if (require.main === module) {
   const cli = new AICodingCLI();
+  module.exports.instance = cli;
   cli.start().catch(error => {
     console.error(`${colors.red}CLI Error: ${error.message}${colors.reset}`);
     process.exit(1);
