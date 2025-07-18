@@ -246,6 +246,71 @@ app.post('/api/generate-code', async (req, res) => {
   }
 });
 
+// Generate code endpoint for repo
+app.post('/api/repo/generate-code', async (req, res) => {
+  try {
+    const { prompt, language = 'javascript' } = req.body;
+    
+    if (!prompt) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prompt is required'
+      });
+    }
+
+    if (process.env.DEEPSEEK_API_KEY) {
+      try {
+        const response = await axios.post('https://api.deepseek.com/v1/chat/completions', {
+          model: 'deepseek-coder',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert ${language} developer. Generate clean, efficient, and well-commented code based on the user's requirements. Focus on best practices and maintainability.`
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: 2000,
+          temperature: 0.7
+        }, {
+          headers: {
+            'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const generatedCode = response.data.choices[0].message.content;
+        
+        res.json({
+          success: true,
+          code: generatedCode,
+          language: language,
+          timestamp: new Date().toISOString()
+        });
+      } catch (aiError) {
+        console.error('DeepSeek API error:', aiError.response?.data || aiError.message);
+        res.status(500).json({
+          success: false,
+          error: 'Code generation service temporarily unavailable'
+        });
+      }
+    } else {
+      res.json({
+        success: false,
+        error: 'Code generation requires DEEPSEEK_API_KEY to be configured'
+      });
+    }
+  } catch (error) {
+    console.error('Repo code generation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Code generation failed'
+    });
+  }
+});
+
 // Fix and commit endpoint
 app.post('/api/fix-and-commit', async (req, res) => {
   try {
