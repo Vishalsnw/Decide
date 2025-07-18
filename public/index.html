@@ -1597,22 +1597,37 @@
         async function checkServerStatus() {
             try {
                 showProgress(20);
-                const response = await fetch('/api/health');
-                const data = await response.json();
+                const response = await fetch('/api/health', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                showProgress(60);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showProgress(100);
 
-                showProgress(100);
-
-                if (data.success) {
-                    statusIndicator.className = 'status-indicator status-online';
-                    statusText.textContent = 'Online';
+                    if (data.success) {
+                        statusIndicator.className = 'status-indicator status-online';
+                        statusText.textContent = 'Online';
+                    } else {
+                        statusIndicator.className = 'status-indicator status-offline';
+                        statusText.textContent = 'Service Error';
+                    }
                 } else {
+                    showProgress(100);
                     statusIndicator.className = 'status-indicator status-offline';
-                    statusText.textContent = 'Offline';
+                    statusText.textContent = `HTTP ${response.status}`;
                 }
             } catch (error) {
+                showProgress(100);
                 statusIndicator.className = 'status-indicator status-offline';
-                statusText.textContent = 'Error';
-                console.error('Status check failed:', error);
+                statusText.textContent = 'Connection Failed';
+                console.warn('Status check failed - this is normal during startup:', error.message);
             }
         }
 
