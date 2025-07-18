@@ -5,6 +5,7 @@ const axios = require('axios');
 const { Octokit } = require('@octokit/rest');
 const simpleGit = require('simple-git');
 const fs = require('fs-extra');
+const path = require('path');
 
 // Ensure conversations.json is in .gitignore
 const ensureGitignore = () => {
@@ -27,7 +28,6 @@ const ensureGitignore = () => {
 
 ensureGitignore();
 const { exec } = require('child_process');
-const path = require('path');
 require('dotenv').config();
 
 const app = express();
