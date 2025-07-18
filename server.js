@@ -367,14 +367,35 @@ function loadConversations() {
   try {
     if (fs.existsSync(CONVERSATIONS_FILE)) {
       const data = fs.readFileSync(CONVERSATIONS_FILE, 'utf8');
+      
+      // Check if data looks like valid JSON
+      if (!data.trim().startsWith('{') && !data.trim().startsWith('[')) {
+        console.warn('Conversations file contains invalid JSON, resetting...');
+        fs.writeFileSync(CONVERSATIONS_FILE, '{}');
+        return;
+      }
+      
       const conversations = JSON.parse(data);
-      Object.entries(conversations).forEach(([key, value]) => {
-        projectConversations.set(key, value);
-      });
-      console.log(`Loaded ${Object.keys(conversations).length} conversation histories`);
+      
+      // Ensure conversations is an object
+      if (typeof conversations === 'object' && conversations !== null) {
+        Object.entries(conversations).forEach(([key, value]) => {
+          // Ensure value is an array before setting
+          if (Array.isArray(value)) {
+            projectConversations.set(key, value);
+          }
+        });
+        console.log(`Loaded ${Object.keys(conversations).length} conversation histories`);
+      }
     }
   } catch (error) {
     console.error('Error loading conversations:', error.message);
+    console.log('Resetting conversations file...');
+    try {
+      fs.writeFileSync(CONVERSATIONS_FILE, '{}');
+    } catch (writeError) {
+      console.error('Failed to reset conversations file:', writeError.message);
+    }
   }
 }
 
@@ -382,9 +403,26 @@ function loadConversations() {
 function saveConversations() {
   try {
     const conversations = Object.fromEntries(projectConversations);
-    fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(conversations, null, 2));
+    
+    // Validate data before saving
+    const jsonString = JSON.stringify(conversations, null, 2);
+    
+    // Write to temporary file first, then rename for atomic operation
+    const tempFile = CONVERSATIONS_FILE + '.tmp';
+    fs.writeFileSync(tempFile, jsonString);
+    fs.renameSync(tempFile, CONVERSATIONS_FILE);
+    
   } catch (error) {
     console.error('Error saving conversations:', error.message);
+    // Clean up temp file if it exists
+    try {
+      const tempFile = CONVERSATIONS_FILE + '.tmp';
+      if (fs.existsSync(tempFile)) {
+        fs.unlinkSync(tempFile);
+      }
+    } catch (cleanupError) {
+      console.error('Error cleaning up temp file:', cleanupError.message);
+    }
   }
 }
 
