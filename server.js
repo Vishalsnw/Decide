@@ -1,4 +1,4 @@
-
+javascript
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -11,13 +11,13 @@ const path = require('path');
 const ensureGitignore = () => {
   const gitignorePath = path.join(__dirname, '.gitignore');
   const conversationsEntry = 'conversations.json';
-  
+
   try {
     let gitignoreContent = '';
     if (fs.existsSync(gitignorePath)) {
       gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
     }
-    
+
     if (!gitignoreContent.includes(conversationsEntry)) {
       fs.appendFileSync(gitignorePath, `\n${conversationsEntry}\n`);
     }
@@ -68,28 +68,28 @@ app.use(express.static('public'));
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Global error caught:', err);
-  
+
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({
       success: false,
       error: 'Invalid JSON format'
     });
   }
-  
+
   if (err.code === 'ENOENT') {
     return res.status(404).json({
       success: false,
       error: 'Resource not found'
     });
   }
-  
+
   if (err.code === 'EACCES') {
     return res.status(403).json({
       success: false,
       error: 'Access denied'
     });
   }
-  
+
   // Default error response
   res.status(500).json({
     success: false,
@@ -280,7 +280,7 @@ app.post('/api/generate-code', async (req, res) => {
 
     // Check memory for context before generating code
     const memoryContext = await getMemoryContext(repoName);
-    
+
     const enhancedContext = `
 ${memoryContext.projectContext}
 ${context ? 'Additional Context: ' + context : ''}
@@ -335,16 +335,16 @@ function loadConversations() {
   try {
     if (fs.existsSync(CONVERSATIONS_FILE)) {
       const data = fs.readFileSync(CONVERSATIONS_FILE, 'utf8');
-      
+
       // Check if data looks like valid JSON
       if (!data.trim().startsWith('{') && !data.trim().startsWith('[')) {
         console.warn('Conversations file contains invalid JSON, resetting...');
         fs.writeFileSync(CONVERSATIONS_FILE, '{}');
         return;
       }
-      
+
       const conversations = JSON.parse(data);
-      
+
       // Ensure conversations is an object
       if (typeof conversations === 'object' && conversations !== null) {
         Object.entries(conversations).forEach(([key, value]) => {
@@ -371,15 +371,15 @@ function loadConversations() {
 function saveConversations() {
   try {
     const conversations = Object.fromEntries(projectConversations);
-    
+
     // Validate data before saving
     const jsonString = JSON.stringify(conversations, null, 2);
-    
+
     // Write to temporary file first, then rename for atomic operation
     const tempFile = CONVERSATIONS_FILE + '.tmp';
     fs.writeFileSync(tempFile, jsonString);
     fs.renameSync(tempFile, CONVERSATIONS_FILE);
-    
+
   } catch (error) {
     console.error('Error saving conversations:', error.message);
     // Clean up temp file if it exists
@@ -434,14 +434,14 @@ app.post('/api/chat', [
       projectConversations.set(conversationKey, []);
     }
     const history = projectConversations.get(conversationKey);
-    
+
     // Fast code detection - skip heavy memory operations for code
     const isCodePaste = message.length > 500 || 
       /```|function\s+\w+|class\s+\w+|import\s+|export\s+|const\s+\w+\s*=|let\s+\w+\s*=/.test(message);
-    
+
     // Detect error patterns quickly
     const hasError = /error|Error|ERROR|exception|failed|undefined|syntax|cannot|missing|unexpected/.test(message);
-    
+
     // Simplified system prompt for better performance
     let systemPrompt = `You are an expert AI coding assistant. Analyze code quickly and provide clear, actionable solutions.
 
@@ -469,20 +469,26 @@ ${isCodePaste ? '📝 CODE DETECTED: Review the code and provide specific feedba
     console.log(`🤖 Processing ${isCodePaste ? 'code' : 'message'} (${message.length} chars)...`);
 
     const response = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: messages,
-      temperature: 0.1,
-      max_tokens: isCodePaste ? 2000 : 1200, // More tokens for code responses
-      stream: false
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 30000 // 30 second timeout
-    });
+            model: 'deepseek-coder',
+            messages: messages,
+            temperature: 0.1,
+            max_tokens: isCodePaste ? 2000 : 1200,
+            stream: false
+        }, {
+            headers: {
+                'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 15000 // Reduced timeout to 15 seconds
+        });
 
-    const aiResponse = response.data.choices[0].message.content;
+        // Safely extract AI response
+        const aiResponse = response.data?.choices?.[0]?.message?.content || 'No response received';
+
+        // Validate response
+        if (!aiResponse || aiResponse.trim() === '') {
+            throw new Error('Empty response from AI service');
+        }
 
     // Simplified memory management
     history.push({ 
@@ -521,36 +527,43 @@ ${isCodePaste ? '📝 CODE DETECTED: Review the code and provide specific feedba
       }
     });
 
-  } catch (error) {
-    console.error('Chat error:', error);
-    
-    // Better error handling
-    if (error.code === 'ECONNRESET' || error.code === 'ECONNABORTED') {
-      return res.status(408).json({ 
-        success: false, 
-        error: 'Request timeout - try breaking your code into smaller pieces' 
-      });
-    }
-    
-    if (error.response?.status === 429) {
-      return res.status(429).json({ 
-        success: false, 
-        error: 'Too many requests - please wait a moment before trying again' 
-      });
-    }
+} catch (error) {
+        console.error('Chat error:', error);
 
-    res.status(500).json({ 
-      success: false, 
-      error: 'AI service temporarily unavailable - please try again' 
-    });
-  }
+        // Better error handling
+        if (error.code === 'ECONNRESET' || error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+            return res.status(408).json({ 
+                success: false, 
+                error: 'Request timeout - try shorter messages or simpler requests' 
+            });
+        }
+
+        if (error.response?.status === 429) {
+            return res.status(429).json({ 
+                success: false, 
+                error: 'Too many requests - please wait 30 seconds before trying again' 
+            });
+        }
+
+        if (error.response?.status === 400) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid request - try rephrasing your message' 
+            });
+        }
+
+        res.status(500).json({ 
+            success: false, 
+            error: 'AI service temporarily unavailable - please try again with a simpler request' 
+        });
+    }
 });
 
 // Clear conversation history for a specific repository
 app.post('/api/clear-conversation', async (req, res) => {
   try {
     const { repoName } = req.body;
-    
+
     if (repoName && projectConversations.has(repoName)) {
       projectConversations.delete(repoName);
       saveConversations();
@@ -627,7 +640,7 @@ app.post('/api/repo/select', async (req, res) => {
 
     // Verify repository access
     const [owner, repoName] = repo.full_name.split('/');
-    
+
     if (!owner || !repoName) {
       return res.status(400).json({
         success: false,
@@ -665,10 +678,10 @@ app.post('/api/repo/select', async (req, res) => {
     // Create memory file for this repository
     let memoryData = { conversations: [], lastUpdated: new Date().toISOString(), totalConversations: 0 };
     let fileCreated = false;
-    
+
     try {
       const memoryFile = getRepoMemoryFile(repo.full_name);
-      
+
       if (await fs.pathExists(memoryFile)) {
         try {
           const existingData = await fs.readFile(memoryFile, 'utf8');
@@ -899,6 +912,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 
 server.on('error', (err) => {
   console.error('❌ Server error occurred:', err);
+```text
   if (err.code === 'EADDRINUSE') {
     console.error(`❌ Port ${PORT} is already in use`);
   } else {
