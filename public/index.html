@@ -748,6 +748,7 @@
             background: #21262d;
         }
 
+        /* Mobile responsive design */
         @media (max-width: 768px) {
             .header {
                 padding: 12px;
@@ -784,13 +785,138 @@
             }
 
             .main-content {
-                flex-direction: column; /* Stack chat and side panels on smaller screens */
+                flex-direction: column;
             }
 
             .side-panels {
-                width: 100%; /* Take full width */
+                width: 100%;
                 border-left: none;
                 border-top: 1px solid #30363d;
+                height: 300px;
+                min-height: 300px;
+            }
+
+            .toggle-panels {
+                display: none;
+            }
+
+            .panel-content {
+                height: 250px;
+            }
+
+            .cli-terminal {
+                height: 250px;
+            }
+
+            .preview-content {
+                height: 250px;
+            }
+
+            .input-container {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .input-actions {
+                justify-content: flex-end;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-left .logo {
+                font-size: 16px;
+            }
+
+            .header-left .logo i {
+                font-size: 20px;
+            }
+
+            .repo-selector {
+                min-width: 120px;
+                font-size: 12px;
+            }
+
+            .message-text {
+                font-size: 14px;
+            }
+
+            .input-box {
+                font-size: 14px;
+            }
+
+            .side-panels {
+                height: 250px;
+                min-height: 250px;
+            }
+
+            .panel-content {
+                height: 200px;
+            }
+
+            .cli-terminal {
+                height: 200px;
+            }
+
+            .preview-content {
+                height: 200px;
+            }
+        }
+
+        /* Auto-fix indicator */
+        .auto-fix-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #238636, #2ea043);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: none;
+            z-index: 1000;
+            animation: pulse 2s infinite;
+        }
+
+        .auto-fix-indicator.show {
+            display: block;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Fix applied notification */
+        .fix-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #56d364, #238636);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            display: none;
+            z-index: 1000;
+            animation: slideInUp 0.3s ease-out;
+        }
+
+        .fix-notification.show {
+            display: block;
+        }
+
+        @keyframes slideInUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
             }
         }
     </style>
@@ -799,6 +925,16 @@
     <div class="progress-bar" id="progressBar"></div>
 
     <div class="container">
+        <!-- Auto-fix indicator -->
+        <div class="auto-fix-indicator" id="autoFixIndicator">
+            <i class="fas fa-cog fa-spin"></i> Auto-fixing...
+        </div>
+
+        <!-- Fix notification -->
+        <div class="fix-notification" id="fixNotification">
+            <i class="fas fa-check"></i> Fix applied automatically!
+        </div>
+
         <!-- Header -->
         <div class="header">
             <div class="header-left">
@@ -836,11 +972,15 @@
                                 <strong>🤖 AI Coding Assistant Ready!</strong>
 
                                 I can help you with:
+                                • **Auto-Fix Mode** - I automatically detect and fix errors for you
                                 • **Code Generation** - Build apps, features, and components
-                                • **Error Fixing** - Paste your code and I'll fix issues
+                                • **Smart Error Fixing** - Just paste your error and I'll apply fixes automatically
                                 • **Code Review** - Get suggestions and improvements
                                 • **GitHub Integration** - Work directly with your repositories
+                                • **Mobile Responsive** - Fully optimized for mobile devices
 
+                                🔧 **Auto-Fix Active**: When you mention errors or issues, I'll automatically detect and fix them!
+                                
                                 Select a repository above or just start describing what you want to build!
                             </div>
                         </div>
@@ -969,6 +1109,8 @@
         let selectedRepo = null;
         let isTyping = false;
         let sessionId = 'web-session-' + Date.now();
+        let autoFixMode = true;
+        let lastErrorMessage = null;
 
         // DOM elements
         const messagesArea = document.getElementById('messagesArea');
@@ -998,6 +1140,8 @@
         const previewIframe = document.getElementById('previewIframe');
         const previewPlaceholder = document.getElementById('previewPlaceholder');
         const togglePanels = document.getElementById('togglePanels');
+        const autoFixIndicator = document.getElementById('autoFixIndicator');
+        const fixNotification = document.getElementById('fixNotification');
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', () => {
@@ -1282,39 +1426,125 @@
             messageInput.value = '';
             adjustTextareaHeight();
 
+            // Check if message contains error keywords for auto-fix
+            const errorKeywords = ['error', 'bug', 'issue', 'problem', 'broken', 'not working', 'fail', 'crash', 'exception'];
+            const containsError = errorKeywords.some(keyword => message.toLowerCase().includes(keyword));
+
             // Show typing indicator
             showTyping();
 
             try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        selectedRepo: selectedRepo,
-                        sessionId: sessionId
-                    })
-                });
+                let response, data;
 
-                const data = await response.json();
-                hideTyping();
-
-                if (data.success) {
-                    addMessage(data.response, 'ai');
+                if (containsError && autoFixMode) {
+                    // Auto-fix mode: try to fix the error automatically
+                    showAutoFixIndicator();
+                    addCliLine('🔧 Auto-fix mode activated...', 'info');
                     
-                    // Show memory context if available
-                    if (data.memoryContext) {
-                        addCliLine(`💭 Memory: ${data.memoryContext.totalConversations} messages in session`);
+                    response = await fetch('/api/fix-and-commit', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            error: message,
+                            action: 'fix_and_apply',
+                            description: `Auto-fix request: ${message}`,
+                            sessionId: sessionId
+                        })
+                    });
+
+                    data = await response.json();
+                    hideAutoFixIndicator();
+                    
+                    if (data.success) {
+                        addMessage(data.solution, 'ai');
+                        
+                        if (data.applied) {
+                            showFixNotification();
+                            addMessage(`✅ Fix automatically applied to: ${data.filesChanged.join(', ')}`, 'success');
+                            addCliLine(`🎉 Auto-fix applied to ${data.filesChanged.length} files!`, 'success');
+                            
+                            // Refresh preview if files were modified
+                            if (data.filesChanged.some(file => file.includes('.html') || file.includes('.js') || file.includes('.css'))) {
+                                setTimeout(() => {
+                                    refreshPreviewPanel();
+                                }, 1000);
+                            }
+                        } else if (data.fixedCode) {
+                            addMessage('💡 Generated fix code (manual application needed):', 'ai');
+                            addMessage(data.fixedCode, 'ai');
+                        }
+                    } else {
+                        // Fall back to regular chat if auto-fix fails
+                        response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                message: message,
+                                selectedRepo: selectedRepo,
+                                sessionId: sessionId
+                            })
+                        });
+                        data = await response.json();
+                        
+                        if (data.success) {
+                            addMessage(data.response, 'ai');
+                        } else {
+                            addMessage(`Error: ${data.error}`, 'error');
+                        }
                     }
                 } else {
-                    addMessage(`Error: ${data.error}`, 'error');
+                    // Regular chat mode
+                    response = await fetch('/api/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            selectedRepo: selectedRepo,
+                            sessionId: sessionId
+                        })
+                    });
+
+                    data = await response.json();
+                    
+                    if (data.success) {
+                        addMessage(data.response, 'ai');
+                        
+                        // Show memory context if available
+                        if (data.memoryContext) {
+                            addCliLine(`💭 Memory: ${data.memoryContext.totalConversations} messages in session`);
+                        }
+                    } else {
+                        addMessage(`Error: ${data.error}`, 'error');
+                    }
                 }
+
+                hideTyping();
             } catch (error) {
                 hideTyping();
+                hideAutoFixIndicator();
                 addMessage(`Network error: ${error.message}`, 'error');
             }
+        }
+
+        function showAutoFixIndicator() {
+            autoFixIndicator.classList.add('show');
+        }
+
+        function hideAutoFixIndicator() {
+            autoFixIndicator.classList.remove('show');
+        }
+
+        function showFixNotification() {
+            fixNotification.classList.add('show');
+            setTimeout(() => {
+                fixNotification.classList.remove('show');
+            }, 3000);
         }
 
         function addMessage(content, type) {

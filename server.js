@@ -482,7 +482,8 @@ Be specific and provide working code that fixes the issue. Include the complete 
         let applied = false;
         
         if (action === 'fix_and_apply') {
-          const codeMatch = solution.match(/FIXED_CODE:\s*([\s\S]*?)(?=\n\n|$)/);
+          // Enhanced pattern matching for code extraction
+          const codeMatch = solution.match(/FIXED_CODE:\s*([\s\S]*?)(?=\n\n|FILE_PATH|$)/);
           const filePathMatch = solution.match(/FILE_PATH:\s*(.+)/);
           
           if (codeMatch) {
@@ -493,13 +494,55 @@ Be specific and provide working code that fixes the issue. Include the complete 
               try {
                 // Apply the fix to the file
                 const fullPath = path.join(__dirname, targetFile);
-                if (fs.existsSync(fullPath) || targetFile.startsWith('public/') || targetFile.endsWith('.js') || targetFile.endsWith('.html')) {
+                const directory = path.dirname(fullPath);
+                
+                // Create directory if it doesn't exist
+                if (!fs.existsSync(directory)) {
+                  fs.mkdirSync(directory, { recursive: true });
+                }
+                
+                // Apply fix to existing files or create new ones
+                if (fs.existsSync(fullPath) || targetFile.startsWith('public/') || targetFile.endsWith('.js') || targetFile.endsWith('.html') || targetFile.endsWith('.css')) {
                   fs.writeFileSync(fullPath, fixedCode);
                   filesChanged.push(targetFile);
                   applied = true;
                 }
               } catch (fileError) {
                 console.error('Error applying fix:', fileError);
+              }
+            }
+          }
+          
+          // If no FIXED_CODE format found, try to extract code from solution
+          if (!applied && solution.includes('```')) {
+            const codeBlocks = solution.match(/```[\s\S]*?```/g);
+            if (codeBlocks && codeBlocks.length > 0) {
+              // Use the first code block
+              fixedCode = codeBlocks[0].replace(/```[\w]*\n?/g, '').replace(/```/g, '').trim();
+              
+              // Try to determine file from context
+              let targetFile = filePath;
+              if (!targetFile) {
+                if (solution.includes('server.js') || solution.includes('express')) {
+                  targetFile = 'server.js';
+                } else if (solution.includes('index.html') || solution.includes('HTML')) {
+                  targetFile = 'public/index.html';
+                } else if (solution.includes('cli.js') || solution.includes('CLI')) {
+                  targetFile = 'cli.js';
+                }
+              }
+              
+              if (targetFile && fixedCode) {
+                try {
+                  const fullPath = path.join(__dirname, targetFile);
+                  if (fs.existsSync(fullPath)) {
+                    fs.writeFileSync(fullPath, fixedCode);
+                    filesChanged.push(targetFile);
+                    applied = true;
+                  }
+                } catch (fileError) {
+                  console.error('Error applying auto-extracted fix:', fileError);
+                }
               }
             }
           }
