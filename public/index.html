@@ -1019,4 +1019,346 @@
             previewTab.addEventListener('click', () => showPanel('preview'));
             cliInput.addEventListener('keydown', handleCliInput);
             refreshPreview.addEventListener('click', refreshPreviewPanel);
-([^```]+)
+            openExternal.addEventListener('click', openExternalPreview);
+            togglePanels.addEventListener('click', toggleSidePanels);
+        }
+
+        function showPanel(panelName) {
+            // Update tabs
+            document.querySelectorAll('.panel-tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.panel-content').forEach(content => content.classList.remove('active'));
+
+            if (panelName === 'cli') {
+                cliTab.classList.add('active');
+                cliPanel.classList.add('active');
+            } else if (panelName === 'preview') {
+                previewTab.classList.add('active');
+                previewPanel.classList.add('active');
+            }
+        }
+
+        function handleCliInput(event) {
+            if (event.key === 'Enter') {
+                const input = cliInput.value.trim();
+                if (input) {
+                    addCliLine(`$ ${input}`, 'command');
+                    processCliCommand(input);
+                    cliInput.value = '';
+                }
+            }
+        }
+
+        function addCliLine(text, type = 'output') {
+            const line = document.createElement('div');
+            line.className = 'cli-line';
+
+            if (type === 'command') {
+                line.innerHTML = `<span class="cli-prompt">$</span> <span class="cli-command">${text.substring(2)}</span>`;
+            } else {
+                line.innerHTML = `<div class="cli-output-line">${text}</div>`;
+            }
+
+            cliOutput.appendChild(line);
+            cliOutput.scrollTop = cliOutput.scrollHeight;
+        }
+
+        async function processCliCommand(command) {
+            const cmd = command.toLowerCase().trim();
+
+            if (cmd === '/help') {
+                addCliLine('Available commands:');
+                addCliLine('/help - Show this help');
+                addCliLine('/status - Check server status');
+                addCliLine('/clear - Clear terminal');
+                addCliLine('/generate [prompt] - Generate code');
+                addCliLine('Or just type your message to chat with AI');
+            } else if (cmd === '/status') {
+                try {
+                    const response = await fetch('/api/health');
+                    const data = await response.json();
+                    addCliLine(`Server: ${data.success ? '✅ Online' : '❌ Offline'}`);
+                    addCliLine(`GitHub: ${data.github ? '✅ Connected' : '❌ Not configured'}`);
+                    addCliLine(`AI: ${data.deepseek ? '✅ Ready' : '❌ Not configured'}`);
+                } catch (error) {
+                    addCliLine(`❌ Error: ${error.message}`);
+                }
+            } else if (cmd === '/clear') {
+                cliOutput.innerHTML = `
+                    <div class="cli-line">
+                        <span class="cli-prompt">$</span>
+                        <span class="cli-command">AI CLI Ready</span>
+                    </div>
+                    <div class="cli-output-line">Type commands or chat with AI directly here</div>
+                    <div class="cli-output-line info">Commands: /help, /status, /generate, /clear</div>
+                `;
+            } else if (cmd.startsWith('/generate ')) {
+                const prompt = command.substring(10);
+                await generateCodeFromCli(prompt);
+            } else {
+                // Regular chat message
+                await sendChatFromCli(command);
+            }
+        }
+
+        async function generateCodeFromCli(prompt) {
+            try {
+                addCliLine('🔄 Generating code...');
+                const response = await fetch('/api/generate-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    addCliLine('✅ Code generated:');
+                    addCliLine(data.code);
+                } else {
+                    addCliLine(`❌ Error: ${data.error}`);
+                }
+            } catch (error) {
+                addCliLine(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function sendChatFromCli(message) {
+            try {
+                addCliLine('🤖 AI is thinking...');
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    addCliLine('🤖 AI: ' + data.response);
+                } else {
+                    addCliLine(`❌ Error: ${data.error}`);
+                }
+            } catch (error) {
+                addCliLine(`❌ Error: ${error.message}`);
+            }
+        }
+
+        function refreshPreviewPanel() {
+            const iframe = previewIframe;
+            if (iframe.src) {
+                iframe.src = iframe.src;
+            }
+        }
+
+        function openExternalPreview() {
+            const iframe = previewIframe;
+            if (iframe.src) {
+                window.open(iframe.src, '_blank');
+            }
+        }
+
+        function toggleSidePanels() {
+            const panels = document.querySelector('.side-panels');
+            const isHidden = panels.style.display === 'none';
+
+            panels.style.display = isHidden ? 'flex' : 'none';
+            togglePanels.innerHTML = isHidden ? 
+                '<i class="fas fa-chevron-left"></i>' : 
+                '<i class="fas fa-chevron-right"></i>';
+        }
+
+        function adjustTextareaHeight() {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                handleSendMessage();
+            }
+        }
+
+        async function handleSendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || isTyping) return;
+
+            // Add user message
+            addMessage(message, 'user');
+            messageInput.value = '';
+            adjustTextareaHeight();
+
+            // Show typing indicator
+            showTyping();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        selectedRepo: selectedRepo
+                    })
+                });
+
+                const data = await response.json();
+                hideTyping();
+
+                if (data.success) {
+                    addMessage(data.response, 'ai');
+                } else {
+                    addMessage(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                hideTyping();
+                addMessage(`Network error: ${error.message}`, 'error');
+            }
+        }
+
+        function addMessage(content, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = `message-avatar ${type}-avatar`;
+            avatarDiv.textContent = type === 'user' ? 'You' : type === 'ai' ? 'AI' : '!';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+
+            const textDiv = document.createElement('div');
+            textDiv.className = 'message-text';
+            textDiv.textContent = content;
+
+            contentDiv.appendChild(textDiv);
+            messageDiv.appendChild(avatarDiv);
+            messageDiv.appendChild(contentDiv);
+
+            messagesArea.appendChild(messageDiv);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        function showTyping() {
+            isTyping = true;
+            typing.classList.add('show');
+            sendBtn.disabled = true;
+        }
+
+        function hideTyping() {
+            isTyping = false;
+            typing.classList.remove('show');
+            sendBtn.disabled = false;
+        }
+
+        function showProgress(width) {
+            progressBar.style.width = width + '%';
+            if (width >= 100) {
+                setTimeout(() => {
+                    progressBar.style.width = '0%';
+                }, 500);
+            }
+        }
+
+        async function checkServerStatus() {
+            try {
+                showProgress(20);
+                const response = await fetch('/api/health');
+                const data = await response.json();
+
+                showProgress(100);
+
+                if (data.success) {
+                    statusIndicator.className = 'status-indicator status-online';
+                    statusText.textContent = 'Online';
+                } else {
+                    statusIndicator.className = 'status-indicator status-offline';
+                    statusText.textContent = 'Offline';
+                }
+            } catch (error) {
+                statusIndicator.className = 'status-indicator status-offline';
+                statusText.textContent = 'Error';
+                console.error('Status check failed:', error);
+            }
+        }
+
+        async function openRepoModal() {
+            repoModal.classList.add('show');
+            repoList.innerHTML = '';
+            repoLoading.style.display = 'flex';
+
+            try {
+                const response = await fetch('/api/github/repos');
+                const data = await response.json();
+
+                repoLoading.style.display = 'none';
+
+                if (data.success && data.repos.length > 0) {
+                    data.repos.forEach(repo => {
+                        const repoItem = createRepoItem(repo);
+                        repoList.appendChild(repoItem);
+                    });
+                } else {
+                    repoList.innerHTML = '<div class="no-repos">No repositories found or GitHub not configured</div>';
+                }
+            } catch (error) {
+                repoLoading.style.display = 'none';
+                repoList.innerHTML = '<div class="error">Failed to load repositories</div>';
+            }
+        }
+
+        function createRepoItem(repo) {
+            const item = document.createElement('div');
+            item.className = 'repo-item';
+            item.innerHTML = `
+                <div class="repo-item-header">
+                    <div>
+                        <div class="repo-name">${repo.name}</div>
+                        <div class="repo-desc">${repo.description || 'No description'}</div>
+                    </div>
+                </div>
+                <div class="repo-meta">
+                    <div class="repo-lang">
+                        <div class="lang-dot"></div>
+                        ${repo.language || 'Unknown'}
+                    </div>
+                    <div>⭐ ${repo.stars}</div>
+                    <div>Updated: ${new Date(repo.updated_at).toLocaleDateString()}</div>
+                </div>
+            `;
+
+            item.addEventListener('click', () => selectRepo(repo));
+            return item;
+        }
+
+        async function selectRepo(repo) {
+            try {
+                const response = await fetch('/api/repo/select', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ repo })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    selectedRepo = repo;
+                    repoText.textContent = repo.name;
+                    closeRepoModal();
+                    addMessage(`Connected to repository: ${repo.full_name}`, 'success');
+                }
+            } catch (error) {
+                addMessage(`Failed to select repository: ${error.message}`, 'error');
+            }
+        }
+
+        function closeRepoModal() {
+            repoModal.classList.remove('show');
+        }
+
+        // Initialize on page load
+        setInterval(checkServerStatus, 30000); // Check every 30 seconds
+    </script>
+</body>
+</html>
