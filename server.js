@@ -565,27 +565,49 @@ Be specific and provide working code that fixes the issue. Include the complete 
             }
           }
 
-          // Last resort: extract any JSON content for config fixes
-          if (!applied && (error.toLowerCase().includes('json') || error.toLowerCase().includes('vercel'))) {
-            const jsonPattern = /\{[\s\S]*?\}/;
-            const jsonMatch = solution.match(jsonPattern);
-            if (jsonMatch) {
-              try {
-                const jsonContent = jsonMatch[0];
-                JSON.parse(jsonContent); // Validate JSON
-                
-                let jsonFile = 'vercel.json';
-                if (error.toLowerCase().includes('package')) {
-                  jsonFile = 'package.json';
-                }
+          // Enhanced JSON config fix for vercel.json and other JSON files
+          if (!applied && (error.toLowerCase().includes('json') || error.toLowerCase().includes('vercel') || error.toLowerCase().includes('parse'))) {
+            // Try to extract and fix JSON from the solution
+            const jsonPatterns = [
+              /```json\s*([\s\S]*?)\s*```/,
+              /```\s*([\s\S]*?)\s*```/,
+              /\{[\s\S]*?\}/
+            ];
 
-                const fullPath = path.join(__dirname, jsonFile);
-                fs.writeFileSync(fullPath, jsonContent);
-                filesChanged.push(jsonFile);
-                applied = true;
-                fixedCode = jsonContent;
-              } catch (jsonError) {
-                console.error('Invalid JSON extracted:', jsonError);
+            for (const pattern of jsonPatterns) {
+              const jsonMatch = solution.match(pattern);
+              if (jsonMatch) {
+                try {
+                  let jsonContent = jsonMatch[1] || jsonMatch[0];
+                  
+                  // Clean up common JSON issues
+                  jsonContent = jsonContent
+                    .replace(/,\s*}/g, '}')  // Remove trailing commas before }
+                    .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
+                    .replace(/\/\/.*$/gm, '') // Remove single-line comments
+                    .replace(/\/\*[\s\S]*?\*\//g, '') // Remove multi-line comments
+                    .trim();
+
+                  // Validate JSON
+                  JSON.parse(jsonContent);
+                  
+                  let jsonFile = 'vercel.json';
+                  if (error.toLowerCase().includes('package')) {
+                    jsonFile = 'package.json';
+                  } else if (error.toLowerCase().includes('tsconfig')) {
+                    jsonFile = 'tsconfig.json';
+                  }
+
+                  const fullPath = path.join(__dirname, jsonFile);
+                  fs.writeFileSync(fullPath, JSON.stringify(JSON.parse(jsonContent), null, 2));
+                  filesChanged.push(jsonFile);
+                  applied = true;
+                  fixedCode = jsonContent;
+                  break;
+                } catch (jsonError) {
+                  console.error('Invalid JSON pattern:', jsonError);
+                  // Continue to next pattern
+                }
               }
             }
           }
