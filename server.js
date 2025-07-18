@@ -1,3 +1,4 @@
+
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -32,31 +33,300 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
-app.use(express.json());
+// Startup logging
+console.log('🚀 Starting AI Coding Assistant...');
+console.log(`📦 Node.js version: ${process.version}`);
+console.log(`🌐 Server will run on port: ${PORT}`);
+console.log(`🔑 GitHub token configured: ${process.env.GITHUB_TOKEN ? 'Yes' : 'No'}`);
+console.log(`🤖 DeepSeek API key configured: ${process.env.DEEPSEEK_API_KEY ? 'Yes' : 'No'}`);
+
+// Rate limiting
+const rateLimit = require('express-rate-limit');
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later'
+});
+
+// Input validation
+const { body, validationResult } = require('express-validator');
+
+// Middleware
+app.use(cors({
+  origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
+  credentials: true
+}));
+app.use(limiter);
+app.use(express.json({ limit: '10mb' })); // Reduced from 50mb
 app.use(express.static('public'));
 
-// Initialize GitHub client
-const octokit = new Octokit({
-  auth: process.env.GITHUB_TOKEN
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Global error caught:', err);
+  
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid JSON format'
+    });
+  }
+  
+  if (err.code === 'ENOENT') {
+    return res.status(404).json({
+      success: false,
+      error: 'Resource not found'
+    });
+  }
+  
+  if (err.code === 'EACCES') {
+    return res.status(403).json({
+      success: false,
+      error: 'Access denied'
+    });
+  }
+  
+  // Default error response
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error'
+  });
 });
+
+// Initialize GitHub client
+let octokit;
+try {
+  if (process.env.GITHUB_TOKEN) {
+    octokit = new Octokit({
+      auth: process.env.GITHUB_TOKEN
+    });
+    console.log('✅ GitHub client initialized successfully');
+  } else {
+    console.log('⚠️  GitHub token not found - GitHub features disabled');
+  }
+} catch (error) {
+  console.error('❌ Failed to initialize GitHub client:', error.message);
+}
 
 // DeepSeek API configuration
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
-// AI Code Generation
+// Memory file path
+const MEMORY_FILE = path.join(__dirname, 'memory.json');
+
+// Sanitize input strings to prevent path traversal and injection
+function sanitizeInput(input, maxLength = 100) {
+  if (!input || typeof input !== 'string') return 'default';
+  return input
+    .replace(/[^a-zA-Z0-9-_./]/g, '_')
+    .replace(/\.{2,}/g, '_')
+    .replace(/\/{2,}/g, '/')
+    .substring(0, maxLength)
+    .toLowerCase();
+}
+
+// Get repository-specific memory file path
+function getRepoMemoryFile(repoName) {
+  const sanitizedName = sanitizeInput(repoName, 50);
+  const fileName = `memory_${sanitizedName}.json`;
+  console.log(`📂 Memory file for ${repoName}: ${fileName}`);
+  return path.join(__dirname, fileName);
+}
+
+// Routes
+app.get('/', (req, res) => {
+  res.redirect('/index.html');
+});
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    status: 'Server is running',
+    timestamp: new Date().toISOString(),
+    github: !!process.env.GITHUB_TOKEN,
+    deepseek: !!process.env.DEEPSEEK_API_KEY,
+    port: PORT
+  });
+});
+
+// Load and analyze memory for context
+async function getMemoryContext(repoName = 'default') {
+  try {
+    const memoryFile = repoName === 'default' ? MEMORY_FILE : getRepoMemoryFile(repoName);
+    console.log(`🧠 Loading memory from: ${memoryFile}`);
+    
+    if (!(await fs.pathExists(memoryFile))) {
+      console.log('📝 No memory file found, creating new memory context');
+      return { conversations: [], projectContext: '', errors: [], totalConversations: 0 };
+    }
+    
+    const rawData = await fs.readFile(memoryFile, 'utf8');
+    let memoryData;
+    
+    try {
+      memoryData = JSON.parse(rawData);
+      
+      // Fix old memory format if needed
+      if (memoryData.default && Array.isArray(memoryData.default)) {
+        memoryData = { conversations: memoryData.default };
+      }
+    } catch (parseError) {
+      console.error('Memory parse error:', parseError.message);
+      return { conversations: [], projectContext: '', errors: [], totalConversations: 0 };
+    }
+    
+    // Ensure conversations array exists
+    const conversations = memoryData.conversations || [];
+    console.log(`📚 Loaded ${conversations.length} conversations from memory`);
+    
+    // Extract project context from conversations
+    const recentErrors = conversations.filter(conv => conv.containsError).slice(-5);
+    const allText = conversations.map(conv => conv.content).join(' ');
+    const projectKeywords = allText.match(/\b(react|vue|angular|express|django|flask|nextjs|tailwind|mongodb|mysql|postgres|javascript|python|nodejs|html|css)\b/gi);
+    
+    const projectContext = projectKeywords ? 
+      `Technologies detected: ${[...new Set(projectKeywords.map(k => k.toLowerCase()))].join(', ')}` : 
+      'No specific technologies detected yet';
+    
+    const context = {
+      conversations: conversations.slice(-10), // Last 10 conversations for context
+      projectContext,
+      errors: recentErrors,
+      totalConversations: conversations.length,
+      lastUpdated: memoryData.lastUpdated || 'Unknown'
+    };
+    
+    console.log(`🎯 Memory context: ${context.totalConversations} conversations, ${recentErrors.length} recent errors`);
+    return context;
+    
+  } catch (error) {
+    console.error('Memory context error:', error);
+    return { conversations: [], projectContext: '', errors: [], totalConversations: 0 };
+  }
+}
+
+// File locking mechanism to prevent race conditions
+const fileLocks = new Map();
+
+async function acquireLock(filePath) {
+  while (fileLocks.has(filePath)) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  fileLocks.set(filePath, Date.now());
+  // Add timeout to prevent deadlocks
+  setTimeout(() => {
+    if (fileLocks.get(filePath) && Date.now() - fileLocks.get(filePath) > 30000) {
+      console.warn(`Force releasing lock for ${filePath} due to timeout`);
+      releaseLock(filePath);
+    }
+  }, 30000);
+}
+
+function releaseLock(filePath) {
+  fileLocks.delete(filePath);
+}
+
+// Save to memory with enhanced metadata
+async function saveToMemory(repoName = 'default', role, content, metadata = {}) {
+  const memoryFile = repoName === 'default' ? MEMORY_FILE : getRepoMemoryFile(repoName);
+  
+  try {
+    await acquireLock(memoryFile);
+    let memoryData = { conversations: [], lastUpdated: new Date().toISOString(), totalConversations: 0 };
+    
+    // Load existing memory data
+    if (await fs.pathExists(memoryFile)) {
+      try {
+        const rawData = await fs.readFile(memoryFile, 'utf8');
+        const parsed = JSON.parse(rawData);
+        
+        // Ensure proper structure
+        if (parsed && typeof parsed === 'object') {
+          memoryData = {
+            conversations: Array.isArray(parsed.conversations) ? parsed.conversations : [],
+            lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+            totalConversations: parsed.totalConversations || 0
+          };
+        }
+      } catch (parseError) {
+        console.error('Memory parse error, resetting:', parseError.message);
+        memoryData = { conversations: [], lastUpdated: new Date().toISOString(), totalConversations: 0 };
+      }
+    }
+    
+    // Create new entry
+    const newEntry = {
+      role,
+      content: String(content).substring(0, 5000), // Limit content size
+      timestamp: new Date().toISOString(),
+      containsError: metadata.containsError || false,
+      errorType: metadata.errorType || null,
+      filesFixed: metadata.filesFixed || [],
+      repoName: repoName,
+      ...metadata
+    };
+    
+    // Add to conversations
+    memoryData.conversations.push(newEntry);
+    
+    // Clean up old conversations (keep last 100)
+    if (memoryData.conversations.length > 100) {
+      memoryData.conversations = memoryData.conversations.slice(-100);
+    }
+    
+    // Update metadata
+    memoryData.lastUpdated = new Date().toISOString();
+    memoryData.totalConversations = memoryData.conversations.length;
+    
+    // Write to file
+    const jsonData = JSON.stringify(memoryData, null, 2);
+    await fs.writeFile(memoryFile, jsonData, 'utf8');
+    
+    console.log(`💾 Memory saved: ${role} message for ${repoName} (${memoryData.totalConversations} total conversations)`);
+    
+  } catch (error) {
+    console.error('❌ Memory save error:', error.message);
+  } finally {
+    releaseLock(memoryFile);
+  }
+}
+
+// AI Code Generation with Memory Context
 app.post('/api/generate-code', async (req, res) => {
   try {
-    const { prompt, language, context } = req.body;
+    if (!DEEPSEEK_API_KEY) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'AI service unavailable - API key not configured' 
+      });
+    }
 
-    const systemPrompt = `You are an expert ${language} programmer. Generate clean, well-commented, production-ready code based on the user's request. Include proper error handling and follow best practices.`;
+    const { prompt, language, context, repoName } = req.body;
+    if (!prompt) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameters'
+      });
+    }
+
+    // Check memory for context before generating code
+    const memoryContext = await getMemoryContext(repoName);
+    
+    const enhancedContext = `
+${memoryContext.projectContext}
+${context ? 'Additional Context: ' + context : ''}
+${memoryContext.errors.length > 0 ? 'Recent Errors Fixed: ' + memoryContext.errors.map(e => e.errorType || 'Unknown').join(', ') : ''}
+Previous Context: ${memoryContext.conversations.slice(-3).map(c => `${c.role}: ${c.content.substring(0, 100)}`).join('\n')}
+`.trim();
+
+    const systemPrompt = `You are an expert ${language} programmer with full memory of this project. Generate clean, well-commented, production-ready code based on the user's request and project history.`;
 
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `${context ? 'Context: ' + context + '\n\n' : ''}Request: ${prompt}` }
+        { role: 'user', content: `${enhancedContext}\n\nRequest: ${prompt}` }
       ],
       temperature: 0.1,
       max_tokens: 2000
@@ -69,83 +339,22 @@ app.post('/api/generate-code', async (req, res) => {
 
     const generatedCode = response.data.choices[0].message.content;
 
+    // Save to memory
+    await saveToMemory(repoName, 'user', prompt);
+    await saveToMemory(repoName, 'assistant', `Generated ${language} code: ${generatedCode.substring(0, 200)}...`);
+
     res.json({
       success: true,
       code: generatedCode,
-      language: language
+      language: language,
+      memoryContext: memoryContext.totalConversations
     });
   } catch (error) {
-    console.error('Code generation error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Test Code Generation
-app.post('/api/generate-tests', async (req, res) => {
-  try {
-    const { code, language, testFramework } = req.body;
-
-    const testPrompt = `Generate comprehensive unit tests for the following ${language} code using ${testFramework}. Include edge cases, error scenarios, and positive test cases:\n\n${code}`;
-
-    const response = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: `You are an expert in writing ${testFramework} tests for ${language}. Generate thorough, well-structured tests.` },
-        { role: 'user', content: testPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 1500
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
+    console.error('Code generation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.response?.data?.error || error.message || 'Code generation failed' 
     });
-
-    const testCode = response.data.choices[0].message.content;
-
-    res.json({
-      success: true,
-      tests: testCode,
-      framework: testFramework
-    });
-  } catch (error) {
-    console.error('Test generation error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Debug Code
-app.post('/api/debug-code', async (req, res) => {
-  try {
-    const { code, error, language } = req.body;
-
-    const debugPrompt = `Debug this ${language} code that has the following error: "${error}"\n\nCode:\n${code}\n\nProvide:\n1. Explanation of the issue\n2. Fixed code\n3. Prevention tips`;
-
-    const response = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: `You are an expert debugger. Analyze code issues and provide clear fixes with explanations.` },
-        { role: 'user', content: debugPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 1500
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const debugResponse = response.data.choices[0].message.content;
-
-    res.json({
-      success: true,
-      debug: debugResponse
-    });
-  } catch (error) {
-    console.error('Debug error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -182,11 +391,38 @@ function saveConversations() {
 // Load conversations on startup
 loadConversations();
 
-// Chat with AI (Repository-aware with persistent history)
-app.post('/api/chat', async (req, res) => {
+// Enhanced Chat with Memory and Error Intelligence
+app.post('/api/chat', [
+  body('message').isLength({ min: 1, max: 10000 }).trim(),
+  body('selectedRepo.full_name').optional().isLength({ max: 100 }).trim().matches(/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/)
+], async (req, res) => {
   try {
-    const { message, selectedRepo, sessionId = 'default' } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid input',
+        details: errors.array()
+      });
+    }
 
+    if (!DEEPSEEK_API_KEY) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'AI service unavailable - API key not configured' 
+      });
+    }
+
+    const { message, selectedRepo, sessionId = 'default' } = req.body;
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message is required'
+      });
+    }
+
+    const repoName = selectedRepo?.full_name || sessionId;
+    
     // Use repo name as persistent key for conversation history
     const conversationKey = selectedRepo ? selectedRepo.full_name : sessionId;
 
@@ -195,11 +431,73 @@ app.post('/api/chat', async (req, res) => {
       projectConversations.set(conversationKey, []);
     }
     const history = projectConversations.get(conversationKey);
+    
+    // Check memory for context before responding
+    console.log(`🔍 Getting memory context for: ${repoName}`);
+    const memoryContext = await getMemoryContext(repoName);
+    console.log(`📖 Memory loaded - ${memoryContext.totalConversations} conversations available`);
+    
+    // Detect if message contains error information
+    const errorPatterns = [
+      /error|Error|ERROR/,
+      /exception|Exception/,
+      /failed|Failed|FAILED/,
+      /undefined|null|NaN/,
+      /syntax|Syntax/,
+      /cannot|Can't|can't/,
+      /missing|Missing/,
+      /unexpected|Unexpected/,
+      /reference|Reference/,
+      /module|Module.*not.*found/,
+      /import|Import.*failed/,
+      /\d+:\d+/  // Line numbers
+    ];
+    
+    const containsError = errorPatterns.some(pattern => pattern.test(message));
+    let errorType = null;
+    
+    if (containsError) {
+      // Classify error type
+      if (/syntax|Syntax/i.test(message)) errorType = 'syntax';
+      else if (/undefined|null/i.test(message)) errorType = 'undefined';
+      else if (/import|module.*not.*found/i.test(message)) errorType = 'import';
+      else if (/reference|Reference/i.test(message)) errorType = 'reference';
+      else errorType = 'general';
+    }
 
-    let systemPrompt = 'You are an expert AI coding assistant like Replit Agent. You help users build, modify, and fix code. Be concise and action-focused. When making changes, briefly state what you\'re doing (e.g., "Creating login system...", "Fixing responsive layout...", "Adding API endpoints..."). Always create complete project blueprints with all necessary files.';
+    let systemPrompt = `You are Replit Agent - AI coding assistant with perfect memory. Support English/Hindi/Hinglish. 
+
+MEMORY CONTEXT:
+- Total conversations: ${memoryContext.totalConversations}
+- Project uses: ${memoryContext.projectContext}
+- Recent errors fixed: ${memoryContext.errors.map(e => e.errorType).join(', ')}
+
+PREVIOUS CONTEXT:
+${memoryContext.conversations.slice(-5).map(c => `${c.role}: ${c.content.substring(0, 150)}...`).join('\n')}
+
+CORE CAPABILITIES:
+- Remember everything about this project
+- Detect errors automatically and know what to fix
+- Build modern web apps with Tailwind CSS, React, Next.js
+- Auto-fix files and commit to GitHub
+- Understand context from previous conversations
+
+${containsError ? `
+🚨 ERROR DETECTED: ${errorType} error
+INSTRUCTIONS: 
+- Analyze the error message intelligently
+- Identify which files need fixing based on project memory
+- Provide specific file fixes
+- Auto-suggest fixes without user explanation needed
+- Remember this error for future context
+` : ''}`;
 
     if (selectedRepo) {
-      systemPrompt += ` You are working on "${selectedRepo.name}" repository. Remember all previous conversations and project context. When users request features, first create a complete blueprint of all required files, then generate each file with proper structure, styling, and functionality. Auto-commit and push all changes.`;
+      systemPrompt += `\n\nCURRENT PROJECT: "${selectedRepo.name}"
+- I have full memory of our conversations about this project
+- I can automatically fix errors based on project context
+- I know which files exist and their purposes from memory
+- I will auto-commit fixes to GitHub`;
     } else {
       systemPrompt += ' The user hasn\'t connected a repository yet. Encourage them to import a repository so you can help build their project.';
     }
@@ -214,8 +512,8 @@ app.post('/api/chat', async (req, res) => {
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: messages,
-      temperature: 0.2,
-      max_tokens: 2000
+      temperature: 0.1,
+      max_tokens: 1200
     }, {
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -237,719 +535,42 @@ app.post('/api/chat', async (req, res) => {
     // Save conversations to disk after each interaction
     saveConversations();
 
+    // Save conversation to memory with error metadata
+    console.log(`💾 Saving conversation to memory for: ${repoName}`);
+    try {
+      await saveToMemory(repoName, 'user', message, { 
+        containsError, 
+        errorType,
+        timestamp: new Date().toISOString()
+      });
+      
+      await saveToMemory(repoName, 'assistant', aiResponse, { 
+        errorResponse: containsError,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Verify memory was saved
+      const updatedContext = await getMemoryContext(repoName);
+      console.log(`✅ Memory updated - now has ${updatedContext.totalConversations} conversations`);
+    } catch (memoryError) {
+      console.error('❌ Failed to save to memory:', memoryError.message);
+    }
+
     res.json({
       success: true,
       response: aiResponse,
-      sessionId: conversationKey
-    });
-  } catch (error) {
-    console.error('Chat error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Generate complete project blueprint and create all files
-app.post('/api/repo/generate-code', async (req, res) => {
-  try {
-    const { owner, repo, instruction } = req.body;
-
-    console.log(`Creating blueprint for: ${instruction}`);
-
-    // Step 1: Create project blueprint
-    const blueprintPrompt = `Analyze this request and create a complete project blueprint: "${instruction}"
-
-Return a JSON object with this exact structure:
-{
-  "action": "brief description of what you're building (max 50 chars)",
-  "files": [
-    {"path": "index.html", "type": "html", "description": "main page"},
-    {"path": "style.css", "type": "css", "description": "styling"},
-    {"path": "script.js", "type": "javascript", "description": "functionality"}
-  ]
-}
-
-Include ALL necessary files for a complete, functional project.`;
-
-    const response = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: 'You are a project architect. You MUST respond with only valid JSON. No explanations, no markdown formatting, no additional text. Only pure JSON.' },
-        { role: 'user', content: blueprintPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 800
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
+      memoryContext: {
+        totalConversations: memoryContext.totalConversations + 1,
+        errorDetected: containsError,
+        errorType: errorType
       }
     });
-
-    let blueprint;
-    try {
-      const cleanResponse = blueprintResponse.data.choices[0].message.content
-        .replace(/```json|```/g, '').trim();
-      blueprint = JSON.parse(cleanResponse);
-    } catch (e) {
-      // Fallback blueprint
-      blueprint = {
-        action: "Creating web application",
-        files: [
-          {"path": "index.html", "type": "html", "description": "main page"},
-          {"path": "style.css", "type": "css", "description": "styling"},
-          {"path": "script.js", "type": "javascript", "description": "functionality"}
-        ]
-      };
-    }
-
-    console.log(`Blueprint: ${blueprint.action} - ${blueprint.files.length} files`);
-
-    // Step 2: Generate each file
-    const createdFiles = [];
-
-    for (const fileSpec of blueprint.files) {
-      console.log(`Generating ${fileSpec.path}...`);
-
-      const filePrompt = `Create a complete, production-ready ${fileSpec.type} file for: ${instruction}
-
-File: ${fileSpec.path} (${fileSpec.description})
-Context: This is part of a ${blueprint.files.length}-file project. Ensure this file works seamlessly with the other files.
-
-Requirements:
-- If HTML: Include responsive design, proper structure, and link to CSS/JS files
-- If CSS: Modern styling, mobile-responsive, professional appearance
-- If JavaScript: Clean ES6+ code, proper error handling, smooth functionality
-- Make it fully functional and production-ready
-
-Return ONLY the complete code without explanations or markdown.`;
-
-      const fileResponse = await axios.post(DEEPSEEK_API_URL, {
-        model: 'deepseek-coder',
-        messages: [
-          { role: 'system', content: `You are an expert ${fileSpec.type} developer. Generate clean, production-ready code.` },
-          { role: 'user', content: filePrompt }
-        ],
-        temperature: 0.1,
-        max_tokens: 3000
-      }, {
-        headers: {
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      let code = fileResponse.data.choices[0].message.content
-        .replace(/```[a-zA-Z]*\n/g, '').replace(/```/g, '').trim();
-
-      // Get existing SHA if file exists
-      let sha = null;
-      try {
-        const existing = await octokit.rest.repos.getContent({
-          owner, repo, path: fileSpec.path
-        });
-        sha = existing.data.sha;
-      } catch (e) {}
-
-      // Create/update file
-      const upload = await octokit.rest.repos.createOrUpdateFileContents({
-        owner, repo,
-        path: fileSpec.path,
-        message: `${blueprint.action} - ${fileSpec.description}`,
-        content: Buffer.from(code).toString('base64'),
-        ...(sha && { sha })
-      });
-
-      createdFiles.push({
-        path: fileSpec.path,
-        action: sha ? 'updated' : 'created',
-        description: fileSpec.description
-      });
-
-      console.log(`✓ ${fileSpec.path} ${sha ? 'updated' : 'created'}`);
-    }
-
-    res.json({
-      success: true,
-      action: blueprint.action,
-      files: createdFiles,
-      message: `${blueprint.action} - ${createdFiles.length} files ${createdFiles[0].action}`
-    });
-
   } catch (error) {
-    console.error('Blueprint generation error:', error.message);
+    console.error('Chat error:', error);
     res.status(500).json({ 
       success: false, 
-      error: error.message,
-      action: "Error creating project"
+      error: error.response?.data?.error || error.message || 'Chat failed' 
     });
-  }
-});
-
-// GitHub Integration - List Repositories
-app.get('/api/github/repos', async (req, res) => {
-  try {
-    if (!process.env.GITHUB_TOKEN) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'GitHub token not configured. Please add your GitHub token to the environment variables.' 
-      });
-    }
-
-    // Validate token format
-    if (!process.env.GITHUB_TOKEN.startsWith('github_pat_') && !process.env.GITHUB_TOKEN.startsWith('ghp_')) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid GitHub token format. Please use a valid Personal Access Token.'
-      });
-    }
-
-    console.log('Attempting to fetch repos with token:', process.env.GITHUB_TOKEN.substring(0, 20) + '...');
-
-    const { data } = await octokit.rest.repos.listForAuthenticatedUser({
-      sort: 'updated',
-      per_page: 50
-    });
-
-    console.log(`Successfully fetched ${data.length} repositories`);
-
-    res.json({
-      success: true,
-      repos: data.map(repo => ({
-        name: repo.name,
-        full_name: repo.full_name,
-        description: repo.description,
-        language: repo.language,
-        updated_at: repo.updated_at,
-        clone_url: repo.clone_url,
-        private: repo.private
-      }))
-    });
-  } catch (error) {
-    console.error('GitHub repos error:', error.response?.data || error.message);
-
-    let errorMessage = 'Unknown GitHub API error';
-    if (error.response?.status === 401) {
-      errorMessage = 'GitHub token is invalid or expired. Please check your Personal Access Token.';
-    } else if (error.response?.status === 403) {
-      errorMessage = 'GitHub token lacks required permissions. Please ensure it has "repo" and "user" scopes.';
-    } else if (error.response?.data?.message) {
-      errorMessage = error.response.data.message;
-    }
-
-    res.status(error.response?.status || 500).json({ 
-      success: false, 
-      error: `GitHub API Error: ${errorMessage}` 
-    });
-  }
-});
-
-// Clone Repository
-app.post('/api/github/clone', async (req, res) => {
-  try {
-    const { repoUrl, localPath } = req.body;
-    const git = simpleGit();
-
-    const targetPath = path.join(__dirname, 'repos', localPath);
-    await fs.ensureDir(targetPath);
-
-    await git.clone(repoUrl, targetPath);
-
-    res.json({
-      success: true,
-      message: 'Repository cloned successfully',
-      path: targetPath
-    });
-  } catch (error) {
-    console.error('Clone error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Run Tests
-app.post('/api/run-tests', async (req, res) => {
-  try {
-    const { projectPath, testCommand } = req.body;
-
-    exec(testCommand, { cwd: projectPath }, (error, stdout, stderr) => {
-      res.json({
-        success: !error,
-        output: stdout,
-        error: stderr || error?.message
-      });
-    });
-  } catch (error) {
-    console.error('Test execution error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Get Repository Files
-app.get('/api/github/files/:owner/:repo', async (req, res) => {
-  try {
-    const { owner, repo } = req.params;
-    const { path = '' } = req.query;
-
-    const { data } = await octokit.rest.repos.getContent({
-      owner,
-      repo,
-      path
-    });
-
-    res.json({
-      success: true,
-      files: Array.isArray(data) ? data : [data]
-    });
-  } catch (error) {
-    console.error('Get files error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Get File Content
-app.get('/api/github/file/:owner/:repo/*', async (req, res) => {
-  try {
-    const { owner, repo } = req.params;
-    const filePath = req.params[0];
-
-    const { data } = await octokit.rest.repos.getContent({
-      owner,
-      repo,
-      path: filePath
-    });
-
-    const content = Buffer.from(data.content, 'base64').toString('utf8');
-
-    res.json({
-      success: true,
-      content,
-      sha: data.sha,
-      path: filePath
-    });
-  } catch (error) {
-    console.error('Get file content error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// AI-Powered Code Modification
-app.post('/api/github/ai-modify', async (req, res) => {
-  try {
-    const { owner, repo, filePath, currentContent, modification, language } = req.body;
-
-    const systemPrompt = `You are an expert ${language} programmer. Modify the provided code based on the user's request. Return only the modified code without explanations or markdown formatting.`;
-
-    const userPrompt = `Current code:\n\`\`\`${language}\n${currentContent}\n\`\`\`\n\nModification request: ${modification}\n\nReturn the complete modified code:`;
-
-    const response = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 3000
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const modifiedCode = response.data.choices[0].message.content;
-
-    res.json({
-      success: true,
-      modifiedCode,
-      originalCode: currentContent
-    });
-  } catch (error) {
-    console.error('AI modification error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Create/Update File in Repository
-app.post('/api/github/update-file', async (req, res) => {
-  try {
-    const { owner, repo, path, content, message, branch = 'main' } = req.body;
-
-    // Check if file exists
-    let sha;
-    try {
-      const { data } = await octokit.rest.repos.getContent({
-        owner,
-        repo,
-        path,
-        ref: branch
-      });
-      sha = data.sha;
-    } catch (error) {
-      // File doesn't exist, that's okay
-    }
-
-    const { data } = await octokit.rest.repos.createOrUpdateFileContents({
-      owner,
-      repo,
-      path,
-      message,
-      content: Buffer.from(content).toString('base64'),
-      branch,
-      ...(sha && { sha })
-    });
-
-    res.json({
-      success: true,
-      commit: data.commit
-    });
-  } catch (error) {
-    console.error('File update error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Create GitHub Repository
-app.post('/api/github/create-repo', async (req, res) => {
-  try {
-    const { name, description, private: isPrivate = false } = req.body;
-
-    const { data } = await octokit.rest.repos.createForAuthenticatedUser({
-      name,
-      description,
-      private: isPrivate,
-      auto_init: true
-    });
-
-    res.json({
-      success: true,
-      ...data
-    });
-  } catch (error) {
-    console.error('Create repo error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Generate Project Plan
-app.post('/api/generate-project-plan', async (req, res) => {
-  try {
-    const { idea, projectName, techStack } = req.body;
-
-    const systemPrompt = `You are an expert software architect. Create a detailed project plan for building a web application. Return your response as a JSON object with the following structure:
-    {
-      "architecture": "description of the overall architecture",
-      "files": ["list", "of", "files", "to", "create"],
-      "features": ["list", "of", "key", "features"],
-      "techDetails": "technical implementation details"
-    }`;
-
-    const userPrompt = `Create a project plan for: "${idea}"
-    Project Name: ${projectName}
-    Technology Stack: ${techStack}
-
-    Make it production-ready with proper error handling, responsive design, and best practices.`;
-
-    const response = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.2,
-      max_tokens: 2000
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const planText = response.data.choices[0].message.content;
-
-    res.json({
-      success: true,
-      plan: planText
-    });
-  } catch (error) {
-    console.error('Project plan error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Generate Project Files
-app.post('/api/generate-project-files', async (req, res) => {
-  try {
-    const { plan, projectName, techStack } = req.body;
-
-    // Enhanced project templates based on tech stack
-    const projectTemplates = {
-      'html-css-js': async () => {
-        const files = {};
-
-        const htmlPrompt = `Create a complete, professional HTML5 website for "${projectName}". Requirements: ${plan}. Include semantic HTML, proper meta tags, accessibility features, and modern structure.`;
-        const htmlResponse = await makeAIRequest(htmlPrompt, 'You are an expert frontend developer. Generate clean, semantic HTML5 code without markdown formatting.');
-        files['index.html'] = cleanCode(htmlResponse, 'html');
-
-        const cssPrompt = `Create modern CSS for "${projectName}". Requirements: ${plan}. Include responsive design, CSS Grid/Flexbox, modern styling, animations, and mobile-first approach.`;
-        const cssResponse = await makeAIRequest(cssPrompt, 'You are an expert CSS developer. Generate clean, modern CSS without markdown formatting.');
-        files['style.css'] = cleanCode(cssResponse, 'css');
-
-        const jsPrompt = `Create interactive JavaScript for "${projectName}". Requirements: ${plan}. Include ES6+ features, DOM manipulation, form handling, API calls, and proper error handling.`;
-        const jsResponse = await makeAIRequest(jsPrompt, 'You are an expert JavaScript developer. Generate clean, modern JavaScript without markdown formatting.');
-        files['script.js'] = cleanCode(jsResponse, 'js');
-
-        return files;
-      },
-
-      'react': async () => {
-        const files = {};
-
-        files['index.html'] = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${projectName}</title>
-    <style>
-        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
-        #root { min-height: 100vh; }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script type="text/babel" src="app.js"></script>
-</body>
-</html>`;
-
-        const reactPrompt = `Create a complete React application for "${projectName}". Requirements: ${plan}. Include functional components, hooks (useState, useEffect), modern React patterns, and proper component structure.`;
-        const reactResponse = await makeAIRequest(reactPrompt, 'You are an expert React developer. Generate clean React JSX code without markdown formatting.');
-        files['app.js'] = cleanCode(reactResponse, 'js');
-
-        const cssPrompt = `Create modern CSS for React app "${projectName}". Requirements: ${plan}. Include component-based styling, responsive design, and modern UI patterns.`;
-        const cssResponse = await makeAIRequest(cssPrompt, 'You are an expert CSS developer. Generate clean CSS without markdown formatting.');
-        files['style.css'] = cleanCode(cssResponse, 'css');
-
-        files['package.json'] = JSON.stringify({
-          name: projectName.toLowerCase().replace(/\s+/g, '-'),
-          version: '1.0.0',
-          dependencies: {
-            'react': '^18.0.0',
-            'react-dom': '^18.0.0'
-          }
-        }, null, 2);
-
-        return files;
-      },
-
-      'node-express': async () => {
-        const files = {};
-
-        const serverPrompt = `Create a complete Express.js server for "${projectName}". Requirements: ${plan}. Include proper routing, middleware, error handling, API endpoints, and static file serving.`;
-        const serverResponse = await makeAIRequest(serverPrompt, 'You are an expert Node.js/Express developer. Generate clean server code without markdown formatting.');
-        files['app.js'] = cleanCode(serverResponse, 'js');
-
-        files['package.json'] = JSON.stringify({
-          name: projectName.toLowerCase().replace(/\s+/g, '-'),
-          version: '1.0.0',
-          main: 'app.js',
-          scripts: {
-            start: 'node app.js',
-            dev: 'nodemon app.js'
-          },
-          dependencies: {
-            express: '^4.18.2',
-            cors: '^2.8.5',
-            dotenv: '^16.3.1'
-          },
-          devDependencies: {
-            nodemon: '^3.0.1'
-          }
-        }, null, 2);
-
-        const htmlPrompt = `Create an HTML frontend for Express app "${projectName}". Requirements: ${plan}. Include AJAX calls to backend APIs and modern UI.`;
-        const htmlResponse = await makeAIRequest(htmlPrompt, 'You are an expert frontend developer. Generate clean HTML without markdown formatting.');
-        files['public/index.html'] = cleanCode(htmlResponse, 'html');
-
-        return files;
-      },
-
-      'python-flask': async () => {
-        const files = {};
-
-        const flaskPrompt = `Create a complete Flask application for "${projectName}". Requirements: ${plan}. Include proper routing, templates, API endpoints, error handling, and Flask best practices.`;
-        const flaskResponse = await makeAIRequest(flaskPrompt, 'You are an expert Python Flask developer. Generate clean Flask code without markdown formatting.');
-        files['app.py'] = cleanCode(flaskResponse, 'python');
-
-        const htmlPrompt = `Create an HTML template for Flask app "${projectName}". Requirements: ${plan}. Use Jinja2 templating and modern frontend practices.`;
-        const htmlResponse = await makeAIRequest(htmlPrompt, 'You are an expert web developer. Generate clean HTML with Jinja2 templates without markdown formatting.');
-        files['templates/index.html'] = cleanCode(htmlResponse, 'html');
-
-        files['requirements.txt'] = `Flask==2.3.3
-python-dotenv==1.0.0
-gunicorn==21.2.0`;
-
-        return files;
-      }
-    };
-
-    // Helper function to make AI requests
-    async function makeAIRequest(prompt, systemMessage) {
-      const response = await axios.post(DEEPSEEK_API_URL, {
-        model: 'deepseek-coder',
-        messages: [
-          { role: 'system', content: systemMessage },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.1,
-        max_tokens: 3000
-      }, {
-        headers: {
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      });
-      return response.data.choices[0].message.content;
-    }
-
-    // Helper function to clean code
-    function cleanCode(code, type) {
-      const patterns = {
-        'html': /```html|```/g,
-        'css': /```css|```/g,
-        'js': /```javascript|```js|```/g,
-        'python': /```python|```py|```/g
-      };
-      return code.replace(patterns[type] || /```/g, '').trim();
-    }
-
-    // Generate files based on tech stack
-    const generator = projectTemplates[techStack] || projectTemplates['html-css-js'];
-    const files = await generator();
-
-    // Add common files
-    files['README.md'] = `# ${projectName}
-
-AI-generated application built with ${techStack}.
-
-## Description
-${plan}
-
-## Features
-- Modern, responsive design
-- Clean, maintainable code
-- Best practices implementation
-- Ready for development and deployment
-
-## Quick Start
-
-${techStack === 'python-flask' ? 
-  '1. Install dependencies: `pip install -r requirements.txt`\n2. Run: `python app.py`\n3. Open: http://localhost:5000' :
-  techStack === 'node-express' ?
-  '1. Install dependencies: `npm install`\n2. Run: `npm start`\n3. Open: http://localhost:3000' :
-  '1. Open `index.html` in your browser\n2. Start developing!'
-}
-
-## Tech Stack
-- ${techStack.split('-').map(tech => tech.charAt(0).toUpperCase() + tech.slice(1)).join(' + ')}
-
-## Project Structure
-${Object.keys(files).map(file => `- \`${file}\``).join('\n')}
-
----
-Generated with AI Code Studio
-`;
-
-    res.json({
-      success: true,
-      files: files
-    });
-  } catch (error) {
-    console.error('File generation error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Test Project
-app.post('/api/test-project', async (req, res) => {
-  try {
-    const { files, techStack } = req.body;
-
-    // Simulate testing by checking for common issues
-    const issues = [];
-
-    // Check for HTML structure
-    if (files['index.html']) {
-      const html = files['index.html'];
-      if (!html.includes('<!DOCTYPE html>')) {
-        issues.push('Missing DOCTYPE declaration');
-      }
-      if (!html.includes('<title>')) {
-        issues.push('Missing page title');
-      }
-    }
-
-    // Check for CSS
-    if (!files['style.css'] && !files['styles.css']) {
-      issues.push('No CSS file found');
-    }
-
-    res.json({
-      success: true,
-      issues: issues,
-      status: issues.length === 0 ? 'passed' : 'issues_found'
-    });
-  } catch (error) {
-    console.error('Project test error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// Fix Project Issues
-app.post('/api/fix-project-issues', async (req, res) => {
-  try {
-    const { files, issues, techStack } = req.body;
-
-    const systemPrompt = `You are an expert developer. Fix the identified issues in the provided files. Return the corrected files as a JSON object with the same structure.`;
-
-    const userPrompt = `Fix these issues in the project files:Issues: ${issues.join(', ')}
-
-    Current Files:
-    ${JSON.stringify(files, null, 2)}
-
-    Return the corrected files as JSON.`;
-
-    const response = await axios.post(DEEPSEEK_API_URL, {
-      model: 'deepseek-coder',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 3000
-    }, {
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const fixedFilesText = response.data.choices[0].message.content;
-
-    let fixedFiles;
-    try {
-      fixedFiles = JSON.parse(fixedFilesText);
-    } catch (e) {
-      fixedFiles = files; // Return original if parsing fails
-    }
-
-    res.json({
-      success: true,
-      files: fixedFiles
-    });
-  } catch (error) {
-    console.error('Fix issues error:', error.message);
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -979,11 +600,353 @@ app.post('/api/clear-conversation', async (req, res) => {
   }
 });
 
-// For Vercel deployment
-if (process.env.NODE_ENV !== 'production') {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AI Coding Assistant running on http://0.0.0.0:${PORT}`);
-  });
+// GitHub - List Repositories
+app.get('/api/github/repos', async (req, res) => {
+  try {
+    if (!octokit) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'GitHub token not configured' 
+      });
+    }
+
+    const response = await octokit.rest.repos.listForAuthenticatedUser({
+      sort: 'updated',
+      per_page: 50
+    });
+
+    res.json({
+      success: true,
+      repos: response.data.map(repo => ({
+        name: repo.name,
+        full_name: repo.full_name,
+        description: repo.description,
+        language: repo.language,
+        updated_at: repo.updated_at,
+        private: repo.private
+      }))
+    });
+  } catch (error) {
+    console.error('GitHub repos error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch repositories' 
+    });
+  }
+});
+
+// Repository Selection Endpoint
+app.post('/api/repo/select', async (req, res) => {
+  try {
+    if (!octokit) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'GitHub token not configured' 
+      });
+    }
+
+    const { repo } = req.body;
+    if (!repo || !repo.full_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Repository information required'
+      });
+    }
+
+    // Verify repository access
+    const [owner, repoName] = repo.full_name.split('/');
+    
+    if (!owner || !repoName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid repository format. Expected owner/repo'
+      });
+    }
+
+    let repoData;
+    try {
+      const repoResponse = await octokit.rest.repos.get({
+        owner: owner,
+        repo: repoName
+      });
+      repoData = repoResponse.data;
+    } catch (error) {
+      console.error('GitHub API error:', error.message);
+      if (error.status === 404) {
+        return res.status(404).json({
+          success: false,
+          error: 'Repository not found or access denied. Check repository name and GitHub token permissions.'
+        });
+      }
+      if (error.status === 403) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access forbidden. Check your GitHub token permissions.'
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        error: `GitHub API error: ${error.message}`
+      });
+    }
+
+    // Create memory file for this repository
+    let memoryData = { conversations: [], lastUpdated: new Date().toISOString(), totalConversations: 0 };
+    let fileCreated = false;
+    
+    try {
+      const memoryFile = getRepoMemoryFile(repo.full_name);
+      
+      if (await fs.pathExists(memoryFile)) {
+        try {
+          const existingData = await fs.readFile(memoryFile, 'utf8');
+          const parsed = JSON.parse(existingData);
+          if (parsed && typeof parsed === 'object') {
+            memoryData = {
+              conversations: Array.isArray(parsed.conversations) ? parsed.conversations : [],
+              lastUpdated: parsed.lastUpdated || new Date().toISOString(),
+              totalConversations: parsed.totalConversations || 0
+            };
+          }
+        } catch (parseError) {
+          console.error('Error reading memory file:', parseError.message);
+          memoryData = { conversations: [], lastUpdated: new Date().toISOString(), totalConversations: 0 };
+        }
+      } else {
+        await fs.writeFile(memoryFile, JSON.stringify(memoryData, null, 2), 'utf8');
+        fileCreated = true;
+      }
+    } catch (fsError) {
+      console.error('File system error:', fsError.message);
+    }
+
+    res.json({
+      success: true,
+      message: `Connected to ${repo.full_name}`,
+      repository: {
+        name: repoData.name,
+        full_name: repoData.full_name,
+        description: repoData.description,
+        private: repoData.private,
+        default_branch: repoData.default_branch
+      },
+      memory: {
+        fileCreated: fileCreated,
+        totalConversations: memoryData.conversations ? memoryData.conversations.length : 0
+      }
+    });
+
+  } catch (error) {
+    console.error('Repository selection error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to connect to repository'
+    });
+  }
+});
+
+// Generate Project Files
+app.post('/api/repo/generate-code', async (req, res) => {
+  try {
+    if (!DEEPSEEK_API_KEY) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'AI service unavailable - API key not configured' 
+      });
+    }
+
+    if (!octokit) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'GitHub integration not available - token not configured' 
+      });
+    }
+
+    const { owner, repo, instruction } = req.body;
+    console.log(`Creating blueprint for: ${instruction}`);
+
+    // Generate project blueprint
+    const blueprintPrompt = `Create a complete project blueprint for: "${instruction}"
+
+Return JSON with this structure:
+{
+  "action": "Building [app type] - [brief description]",
+  "techStack": "chosen tech stack",
+  "files": [
+    {"path": "index.html", "type": "html", "description": "main landing page"},
+    {"path": "style.css", "type": "css", "description": "styling"},
+    {"path": "script.js", "type": "javascript", "description": "functionality"}
+  ]
 }
 
-module.exports = app;
+Use modern tech like Tailwind CSS, responsive design, and clean code.`;
+
+    const blueprintResponse = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-coder',
+      messages: [
+        { role: 'system', content: 'You are a project architect. You MUST respond with only valid JSON. No explanations, no markdown formatting, no additional text. Only pure JSON.' },
+        { role: 'user', content: blueprintPrompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 800
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    let blueprint;
+    try {
+      const rawResponse = blueprintResponse.data.choices[0].message.content;
+      const cleanResponse = rawResponse.replace(/```json|```/g, '').trim();
+      const jsonMatch = cleanResponse.match(/\{[\s\S]*\}/);
+      blueprint = JSON.parse(jsonMatch ? jsonMatch[0] : cleanResponse);
+    } catch (e) {
+      blueprint = {
+        action: "Creating web application",
+        techStack: "Modern HTML/CSS/JS",
+        files: [
+          {"path": "index.html", "type": "html", "description": "main page"},
+          {"path": "style.css", "type": "css", "description": "styling"},
+          {"path": "script.js", "type": "javascript", "description": "functionality"}
+        ]
+      };
+    }
+
+    const createdFiles = [];
+
+    // Generate each file
+    for (let i = 0; i < blueprint.files.length; i++) {
+      const fileSpec = blueprint.files[i];
+      console.log(`[${i + 1}/${blueprint.files.length}] Generating ${fileSpec.path}...`);
+
+      const filePrompt = `Create a complete, modern ${fileSpec.type} file for: ${instruction}
+
+File: ${fileSpec.path} (${fileSpec.description})
+Tech Stack: ${blueprint.techStack}
+
+REQUIREMENTS:
+- If HTML: Use Tailwind CSS CDN, responsive design, modern HTML5
+- If CSS: Use Tailwind utility classes, responsive design
+- If JavaScript: Modern ES6+, proper error handling
+
+Return only the code without markdown formatting.`;
+
+      const fileResponse = await axios.post(DEEPSEEK_API_URL, {
+        model: 'deepseek-coder',
+        messages: [
+          { role: 'system', content: `You are an expert ${fileSpec.type} developer. Generate clean code without markdown.` },
+          { role: 'user', content: filePrompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 2000
+      }, {
+        headers: {
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const code = fileResponse.data.choices[0].message.content
+        .replace(/```[a-zA-Z]*\n/g, '').replace(/```/g, '').trim();
+
+      // Create/update file
+      let sha = null;
+      try {
+        const existing = await octokit.rest.repos.getContent({
+          owner, repo, path: fileSpec.path
+        });
+        sha = existing.data.sha;
+      } catch (e) {
+        console.log(`Creating new file: ${fileSpec.path}`);
+      }
+
+      const upload = await octokit.rest.repos.createOrUpdateFileContents({
+        owner, repo,
+        path: fileSpec.path,
+        message: `${blueprint.action} - ${fileSpec.description}`,
+        content: Buffer.from(code).toString('base64'),
+        branch: 'main',
+        ...(sha && { sha })
+      });
+
+      createdFiles.push({
+        path: fileSpec.path,
+        action: sha ? 'updated' : 'created',
+        description: fileSpec.description,
+        commitSha: upload.data.commit.sha
+      });
+
+      console.log(`✓ [${i + 1}/${blueprint.files.length}] ${fileSpec.path} ${sha ? 'updated' : 'created'}`);
+    }
+
+    res.json({
+      success: true,
+      action: blueprint.action,
+      files: createdFiles,
+      message: `${blueprint.action} - ${createdFiles.length} files created`
+    });
+
+  } catch (error) {
+    console.error('Blueprint generation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.response?.data?.error || error.message || 'Failed to generate project'
+    });
+  }
+});
+
+// Start server with enhanced error handling for Replit
+console.log(`🚀 Attempting to start server on port ${PORT}...`);
+
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ AI Coding Assistant running on http://0.0.0.0:${PORT}`);
+  console.log(`🌍 Replit deployment ready - accessible via webview`);
+  console.log('📋 Features available:');
+  console.log('   - AI Code Generation' + (process.env.DEEPSEEK_API_KEY ? ' ✅' : ' ❌ (API key needed)'));
+  console.log('   - GitHub Integration' + (process.env.GITHUB_TOKEN ? ' ✅' : ' ❌ (Token needed)'));
+  console.log('   - Auto Error Fixing');
+  console.log('   - Project Generation');
+  console.log('');
+
+  if (!process.env.GITHUB_TOKEN || !process.env.DEEPSEEK_API_KEY) {
+    console.log('🔧 Setup required:');
+    if (!process.env.GITHUB_TOKEN) {
+      console.log('   - Add GITHUB_TOKEN to Replit Secrets');
+    }
+    if (!process.env.DEEPSEEK_API_KEY) {
+      console.log('   - Add DEEPSEEK_API_KEY to Replit Secrets');
+    }
+    console.log('');
+  }
+
+  console.log('🚀 Server successfully started and ready!');
+  console.log(`📱 Open the webview or visit your Repl URL to access the app`);
+});
+
+server.on('error', (err) => {
+  console.error('❌ Server error occurred:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use`);
+  } else {
+    console.error('❌ Server error:', err.message);
+  }
+});
+
+// Handle graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('📴 Gracefully shutting down server...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('📴 Gracefully shutting down server...');
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
+});
