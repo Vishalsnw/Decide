@@ -143,6 +143,11 @@ app.get('/', (req, res) => {
   res.redirect('/index.html');
 });
 
+// CLI Interface with Preview
+app.get('/cli', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'cli.html'));
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({
