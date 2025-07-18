@@ -240,7 +240,7 @@ app.post('/api/generate-code', async (req, res) => {
 
 // Default route
 app.get('/', (req, res) => {
-  res.redirect('/index.html');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Catch-all for API routes
