@@ -164,7 +164,12 @@ app.post('/api/repo/select', (req, res) => {
   res.json({
     success: true,
     message: `Selected repository: ${repo.full_name}`,
-    repository: repo
+    repository: repo,
+    memory: {
+      totalConversations: 0,
+      repoName: repo.full_name,
+      sessionId: 'web-session'
+    }
   });
 });
 
