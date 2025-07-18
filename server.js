@@ -381,6 +381,16 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// CLI route
+app.get('/cli', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'cli.html'));
+});
+
+// Alternative CLI route
+app.get('/cli.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'cli.html'));
+});
+
 // Catch-all for API routes
 app.use('/api/*', (req, res) => {
   res.status(404).json({
