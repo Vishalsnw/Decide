@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -799,7 +798,7 @@
                 <i class="fas fa-robot"></i>
                 AI Assistant
             </div>
-            
+
             <div class="header-center">
                 <div class="repo-status" id="repoStatus">
                     <i class="fas fa-folder"></i>
@@ -837,7 +836,7 @@
                     </div>
                     <h2>Welcome to AI Code Assistant</h2>
                     <p>Your intelligent coding companion. Import a repository and start building with AI assistance. I can create, modify, debug, and enhance your code automatically.</p>
-                    
+
                     <div class="feature-grid">
                         <div class="feature-card">
                             <i class="fas fa-code"></i>
@@ -933,7 +932,7 @@
         function setupEventListeners() {
             // Import repository
             document.getElementById('importBtn').addEventListener('click', showRepoModal);
-            
+
             // Clear chat
             document.getElementById('clearChat').addEventListener('click', clearConversation);
 
@@ -946,7 +945,7 @@
             // Message controls
             document.getElementById('sendBtn').addEventListener('click', sendMessage);
             document.getElementById('voiceBtn').addEventListener('click', startVoiceInput);
-            
+
             // Input handling
             const input = document.getElementById('messageInput');
             input.addEventListener('keypress', function(e) {
@@ -1044,13 +1043,13 @@
             // Update UI
             const status = document.getElementById('repoStatus');
             const repoName = document.getElementById('repoName');
-            
+
             status.classList.add('connected');
             repoName.textContent = repo.name;
 
             hideRepoModal();
             clearWelcome();
-            
+
             // Add connection message
             addMessage('system', `🔗 Connected to repository: ${repo.name}`);
             addMessage('assistant', 
@@ -1068,12 +1067,12 @@
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
-            
+
             if (!message || isGenerating) return;
 
             isGenerating = true;
             updateSendButton(true);
-            
+
             // Add user message
             addMessage('user', message);
             input.value = '';
@@ -1109,7 +1108,7 @@
 
         async function handleProjectGeneration(instruction) {
             showProgress(0);
-            
+
             try {
                 // Step 1: Generate project
                 showProgress(25);
@@ -1127,16 +1126,16 @@
 
                 const result = await response.json();
                 showProgress(75);
-                
+
                 if (result.success) {
                     // Success message
                     const filesList = result.files.map(f => 
                         `  • **${f.path}** - ${f.description}`
                     ).join('\n');
-                    
+
                     showProgress(100);
                     hideTyping();
-                    
+
                     addMessage('success', 
                         `✅ **${result.action}**\n\n` +
                         `**Files created/updated:**\n${filesList}\n\n` +
@@ -1151,7 +1150,7 @@
                 hideTyping();
                 addMessage('error', `❌ **Generation Error**\n\n${error.message}`);
             }
-            
+
             hideProgress();
         }
 
@@ -1185,10 +1184,10 @@
         function addMessage(type, content) {
             const messages = document.getElementById('messages');
             const message = document.createElement('div');
-            
+
             message.className = `message ${type}`;
             message.innerHTML = formatMessage(content);
-            
+
             // Add timestamp for user and assistant messages
             if (type === 'user' || type === 'assistant') {
                 const timestamp = document.createElement('div');
@@ -1204,14 +1203,14 @@
             }
 
             messages.appendChild(message);
-            
+
             // Re-add typing
             if (typing) {
                 messages.appendChild(typing);
             }
 
             messages.scrollTop = messages.scrollHeight;
-            
+
             // Save to history
             conversationHistory.push({ type, content, timestamp: Date.now() });
             saveConversationHistory();
@@ -1243,7 +1242,7 @@
         function showProgress(percent) {
             const bar = document.getElementById('progressBar');
             const fill = document.getElementById('progressFill');
-            
+
             bar.classList.add('active');
             fill.style.width = percent + '%';
         }
@@ -1258,10 +1257,10 @@
         function updateSendButton(loading) {
             const btn = document.getElementById('sendBtn');
             const voiceBtn = document.getElementById('voiceBtn');
-            
+
             btn.disabled = loading;
             voiceBtn.disabled = loading;
-            
+
             if (loading) {
                 btn.innerHTML = '<div class="spinner"></div>';
             } else {
@@ -1296,10 +1295,10 @@
                     </div>
                 </div>
             `;
-            
+
             conversationHistory = [];
             saveConversationHistory();
-            
+
             if (selectedRepo) {
                 addMessage('system', 'Conversation cleared');
                 addMessage('assistant', 'How can I help you with your project today?');
@@ -1319,21 +1318,21 @@
                 recognition.continuous = false;
                 recognition.interimResults = false;
                 recognition.lang = 'en-US';
-                
+
                 recognition.onstart = function() {
                     document.getElementById('voiceBtn').innerHTML = '<i class="fas fa-microphone-slash"></i>';
                 };
-                
+
                 recognition.onresult = function(event) {
                     const transcript = event.results[0][0].transcript;
                     document.getElementById('messageInput').value = transcript;
                     autoResizeTextarea();
                 };
-                
+
                 recognition.onend = function() {
                     document.getElementById('voiceBtn').innerHTML = '<i class="fas fa-microphone"></i>';
                 };
-                
+
                 recognition.start();
             } else {
                 addMessage('system', 'Voice input not supported in this browser');
@@ -1363,7 +1362,7 @@
             const now = new Date();
             const diff = now - date;
             const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            
+
             if (days === 0) return 'Today';
             if (days === 1) return 'Yesterday';
             if (days < 7) return `${days} days ago`;

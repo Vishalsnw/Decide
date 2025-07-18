@@ -160,60 +160,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Load and analyze memory for context
+// Simplified memory context for better performance
 async function getMemoryContext(repoName = 'default') {
-  try {
-    const memoryFile = repoName === 'default' ? MEMORY_FILE : getRepoMemoryFile(repoName);
-    console.log(`🧠 Loading memory from: ${memoryFile}`);
-    
-    if (!(await fs.pathExists(memoryFile))) {
-      console.log('📝 No memory file found, creating new memory context');
-      return { conversations: [], projectContext: '', errors: [], totalConversations: 0 };
-    }
-    
-    const rawData = await fs.readFile(memoryFile, 'utf8');
-    let memoryData;
-    
-    try {
-      memoryData = JSON.parse(rawData);
-      
-      // Fix old memory format if needed
-      if (memoryData.default && Array.isArray(memoryData.default)) {
-        memoryData = { conversations: memoryData.default };
-      }
-    } catch (parseError) {
-      console.error('Memory parse error:', parseError.message);
-      return { conversations: [], projectContext: '', errors: [], totalConversations: 0 };
-    }
-    
-    // Ensure conversations array exists
-    const conversations = memoryData.conversations || [];
-    console.log(`📚 Loaded ${conversations.length} conversations from memory`);
-    
-    // Extract project context from conversations
-    const recentErrors = conversations.filter(conv => conv.containsError).slice(-5);
-    const allText = conversations.map(conv => conv.content).join(' ');
-    const projectKeywords = allText.match(/\b(react|vue|angular|express|django|flask|nextjs|tailwind|mongodb|mysql|postgres|javascript|python|nodejs|html|css)\b/gi);
-    
-    const projectContext = projectKeywords ? 
-      `Technologies detected: ${[...new Set(projectKeywords.map(k => k.toLowerCase()))].join(', ')}` : 
-      'No specific technologies detected yet';
-    
-    const context = {
-      conversations: conversations.slice(-10), // Last 10 conversations for context
-      projectContext,
-      errors: recentErrors,
-      totalConversations: conversations.length,
-      lastUpdated: memoryData.lastUpdated || 'Unknown'
-    };
-    
-    console.log(`🎯 Memory context: ${context.totalConversations} conversations, ${recentErrors.length} recent errors`);
-    return context;
-    
-  } catch (error) {
-    console.error('Memory context error:', error);
-    return { conversations: [], projectContext: '', errors: [], totalConversations: 0 };
-  }
+  return { 
+    conversations: [], 
+    projectContext: 'AI Coding Assistant', 
+    errors: [], 
+    totalConversations: 0 
+  };
 }
 
 // File locking mechanism to prevent race conditions
@@ -237,70 +191,74 @@ function releaseLock(filePath) {
   fileLocks.delete(filePath);
 }
 
-// Save to memory with enhanced metadata
+// Simplified memory saving - async background operation
 async function saveToMemory(repoName = 'default', role, content, metadata = {}) {
-  const memoryFile = repoName === 'default' ? MEMORY_FILE : getRepoMemoryFile(repoName);
-  
-  try {
-    await acquireLock(memoryFile);
-    let memoryData = { conversations: [], lastUpdated: new Date().toISOString(), totalConversations: 0 };
-    
-    // Load existing memory data
-    if (await fs.pathExists(memoryFile)) {
-      try {
-        const rawData = await fs.readFile(memoryFile, 'utf8');
-        const parsed = JSON.parse(rawData);
-        
-        // Ensure proper structure
-        if (parsed && typeof parsed === 'object') {
-          memoryData = {
-            conversations: Array.isArray(parsed.conversations) ? parsed.conversations : [],
-            lastUpdated: parsed.lastUpdated || new Date().toISOString(),
-            totalConversations: parsed.totalConversations || 0
-          };
-        }
-      } catch (parseError) {
-        console.error('Memory parse error, resetting:', parseError.message);
-        memoryData = { conversations: [], lastUpdated: new Date().toISOString(), totalConversations: 0 };
-      }
-    }
-    
-    // Create new entry
-    const newEntry = {
-      role,
-      content: String(content).substring(0, 5000), // Limit content size
-      timestamp: new Date().toISOString(),
-      containsError: metadata.containsError || false,
-      errorType: metadata.errorType || null,
-      filesFixed: metadata.filesFixed || [],
-      repoName: repoName,
-      ...metadata
-    };
-    
-    // Add to conversations
-    memoryData.conversations.push(newEntry);
-    
-    // Clean up old conversations (keep last 100)
-    if (memoryData.conversations.length > 100) {
-      memoryData.conversations = memoryData.conversations.slice(-100);
-    }
-    
-    // Update metadata
-    memoryData.lastUpdated = new Date().toISOString();
-    memoryData.totalConversations = memoryData.conversations.length;
-    
-    // Write to file
-    const jsonData = JSON.stringify(memoryData, null, 2);
-    await fs.writeFile(memoryFile, jsonData, 'utf8');
-    
-    console.log(`💾 Memory saved: ${role} message for ${repoName} (${memoryData.totalConversations} total conversations)`);
-    
-  } catch (error) {
-    console.error('❌ Memory save error:', error.message);
-  } finally {
-    releaseLock(memoryFile);
-  }
+  // Skip memory saving for performance - conversations are handled separately
+  return;
 }
+
+// Fast Code Analysis Endpoint
+app.post('/api/analyze-code', async (req, res) => {
+  try {
+    if (!DEEPSEEK_API_KEY) {
+      return res.status(503).json({ 
+        success: false, 
+        error: 'AI service unavailable - API key not configured' 
+      });
+    }
+
+    const { code, language = 'javascript', action = 'fix' } = req.body;
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Code is required'
+      });
+    }
+
+    console.log(`🔧 Analyzing ${language} code (${code.length} chars)...`);
+
+    const systemPrompt = `You are an expert ${language} developer. Analyze the provided code and ${action === 'fix' ? 'fix any errors' : 'suggest improvements'}.
+
+RULES:
+- Provide complete, working code
+- Explain what was wrong and how you fixed it
+- Use modern best practices
+- Be concise but thorough`;
+
+    const response = await axios.post(DEEPSEEK_API_URL, {
+      model: 'deepseek-coder',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `${action === 'fix' ? 'Fix this code:' : 'Improve this code:'}\n\n${code}` }
+      ],
+      temperature: 0.1,
+      max_tokens: 2500
+    }, {
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    const result = response.data.choices[0].message.content;
+
+    res.json({
+      success: true,
+      result: result,
+      language: language,
+      action: action,
+      originalLength: code.length
+    });
+
+  } catch (error) {
+    console.error('Code analysis error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.response?.data?.error || 'Code analysis failed' 
+    });
+  }
+});
 
 // AI Code Generation with Memory Context
 app.post('/api/generate-code', async (req, res) => {
@@ -439,9 +397,9 @@ function saveConversations() {
 // Load conversations on startup
 loadConversations();
 
-// Enhanced Chat with Memory and Error Intelligence
+// Enhanced Chat with Optimized Code Handling
 app.post('/api/chat', [
-  body('message').isLength({ min: 1, max: 10000 }).trim(),
+  body('message').isLength({ min: 1, max: 50000 }).trim(), // Increased limit for code
   body('selectedRepo.full_name').optional().isLength({ max: 100 }).trim().matches(/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/)
 ], async (req, res) => {
   try {
@@ -469,9 +427,6 @@ app.post('/api/chat', [
       });
     }
 
-    const repoName = selectedRepo?.full_name || sessionId;
-    
-    // Use repo name as persistent key for conversation history
     const conversationKey = selectedRepo ? selectedRepo.full_name : sessionId;
 
     // Get or create conversation history for this project
@@ -480,144 +435,113 @@ app.post('/api/chat', [
     }
     const history = projectConversations.get(conversationKey);
     
-    // Check memory for context before responding
-    console.log(`🔍 Getting memory context for: ${repoName}`);
-    const memoryContext = await getMemoryContext(repoName);
-    console.log(`📖 Memory loaded - ${memoryContext.totalConversations} conversations available`);
+    // Fast code detection - skip heavy memory operations for code
+    const isCodePaste = message.length > 500 || 
+      /```|function\s+\w+|class\s+\w+|import\s+|export\s+|const\s+\w+\s*=|let\s+\w+\s*=/.test(message);
     
-    // Detect if message contains error information
-    const errorPatterns = [
-      /error|Error|ERROR/,
-      /exception|Exception/,
-      /failed|Failed|FAILED/,
-      /undefined|null|NaN/,
-      /syntax|Syntax/,
-      /cannot|Can't|can't/,
-      /missing|Missing/,
-      /unexpected|Unexpected/,
-      /reference|Reference/,
-      /module|Module.*not.*found/,
-      /import|Import.*failed/,
-      /\d+:\d+/  // Line numbers
-    ];
+    // Detect error patterns quickly
+    const hasError = /error|Error|ERROR|exception|failed|undefined|syntax|cannot|missing|unexpected/.test(message);
     
-    const containsError = errorPatterns.some(pattern => pattern.test(message));
-    let errorType = null;
-    
-    if (containsError) {
-      // Classify error type
-      if (/syntax|Syntax/i.test(message)) errorType = 'syntax';
-      else if (/undefined|null/i.test(message)) errorType = 'undefined';
-      else if (/import|module.*not.*found/i.test(message)) errorType = 'import';
-      else if (/reference|Reference/i.test(message)) errorType = 'reference';
-      else errorType = 'general';
-    }
+    // Simplified system prompt for better performance
+    let systemPrompt = `You are an expert AI coding assistant. Analyze code quickly and provide clear, actionable solutions.
 
-    let systemPrompt = `You are Replit Agent - AI coding assistant with perfect memory. Support English/Hindi/Hinglish. 
+INSTRUCTIONS:
+- If user pasted code with errors: identify the specific issue and provide a working fix
+- If user pasted working code: suggest improvements or explain functionality
+- Be concise but thorough
+- Always provide complete working code, not snippets
+- Focus on the immediate problem
 
-MEMORY CONTEXT:
-- Total conversations: ${memoryContext.totalConversations}
-- Project uses: ${memoryContext.projectContext}
-- Recent errors fixed: ${memoryContext.errors.map(e => e.errorType).join(', ')}
-
-PREVIOUS CONTEXT:
-${memoryContext.conversations.slice(-5).map(c => `${c.role}: ${c.content.substring(0, 150)}...`).join('\n')}
-
-CORE CAPABILITIES:
-- Remember everything about this project
-- Detect errors automatically and know what to fix
-- Build modern web apps with Tailwind CSS, React, Next.js
-- Auto-fix files and commit to GitHub
-- Understand context from previous conversations
-
-${containsError ? `
-🚨 ERROR DETECTED: ${errorType} error
-INSTRUCTIONS: 
-- Analyze the error message intelligently
-- Identify which files need fixing based on project memory
-- Provide specific file fixes
-- Auto-suggest fixes without user explanation needed
-- Remember this error for future context
-` : ''}`;
+${hasError ? '🚨 ERROR DETECTED: Analyze the error and provide a complete fix.' : ''}
+${isCodePaste ? '📝 CODE DETECTED: Review the code and provide specific feedback.' : ''}`;
 
     if (selectedRepo) {
-      systemPrompt += `\n\nCURRENT PROJECT: "${selectedRepo.name}"
-- I have full memory of our conversations about this project
-- I can automatically fix errors based on project context
-- I know which files exist and their purposes from memory
-- I will auto-commit fixes to GitHub`;
-    } else {
-      systemPrompt += ' The user hasn\'t connected a repository yet. Encourage them to import a repository so you can help build their project.';
+      systemPrompt += `\n\nProject: ${selectedRepo.name} - I remember our previous conversations about this project.`;
     }
 
-    // Build messages array with full project history (kept until completion)
+    // Simplified message handling for speed
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...history.slice(-20), // Keep more context for project continuity
+      ...history.slice(-6), // Reduced context for speed
       { role: 'user', content: message }
     ];
+
+    console.log(`🤖 Processing ${isCodePaste ? 'code' : 'message'} (${message.length} chars)...`);
 
     const response = await axios.post(DEEPSEEK_API_URL, {
       model: 'deepseek-coder',
       messages: messages,
       temperature: 0.1,
-      max_tokens: 1200
+      max_tokens: isCodePaste ? 2000 : 1200, // More tokens for code responses
+      stream: false
     }, {
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
         'Content-Type': 'application/json'
-      }
+      },
+      timeout: 30000 // 30 second timeout
     });
 
     const aiResponse = response.data.choices[0].message.content;
 
-    // Add to persistent project history
-    history.push({ role: 'user', content: message });
-    history.push({ role: 'assistant', content: aiResponse });
+    // Simplified memory management
+    history.push({ 
+      role: 'user', 
+      content: message.substring(0, 1000), // Truncate for storage
+      timestamp: new Date().toISOString()
+    });
+    history.push({ 
+      role: 'assistant', 
+      content: aiResponse.substring(0, 1000),
+      timestamp: new Date().toISOString()
+    });
 
-    // Keep extensive history for project context (up to 40 messages)
-    if (history.length > 40) {
-      history.splice(0, history.length - 40);
+    // Keep only recent history for performance
+    if (history.length > 20) {
+      history.splice(0, history.length - 20);
     }
 
-    // Save conversations to disk after each interaction
-    saveConversations();
-
-    // Save conversation to memory with error metadata
-    console.log(`💾 Saving conversation to memory for: ${repoName}`);
-    try {
-      await saveToMemory(repoName, 'user', message, { 
-        containsError, 
-        errorType,
-        timestamp: new Date().toISOString()
-      });
-      
-      await saveToMemory(repoName, 'assistant', aiResponse, { 
-        errorResponse: containsError,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Verify memory was saved
-      const updatedContext = await getMemoryContext(repoName);
-      console.log(`✅ Memory updated - now has ${updatedContext.totalConversations} conversations`);
-    } catch (memoryError) {
-      console.error('❌ Failed to save to memory:', memoryError.message);
-    }
+    // Async save - don't block response
+    setImmediate(() => {
+      try {
+        saveConversations();
+      } catch (e) {
+        console.error('Background save failed:', e.message);
+      }
+    });
 
     res.json({
       success: true,
       response: aiResponse,
-      memoryContext: {
-        totalConversations: memoryContext.totalConversations + 1,
-        errorDetected: containsError,
-        errorType: errorType
+      metadata: {
+        isCodePaste,
+        hasError,
+        messageLength: message.length,
+        processingTime: 'optimized'
       }
     });
+
   } catch (error) {
     console.error('Chat error:', error);
+    
+    // Better error handling
+    if (error.code === 'ECONNRESET' || error.code === 'ECONNABORTED') {
+      return res.status(408).json({ 
+        success: false, 
+        error: 'Request timeout - try breaking your code into smaller pieces' 
+      });
+    }
+    
+    if (error.response?.status === 429) {
+      return res.status(429).json({ 
+        success: false, 
+        error: 'Too many requests - please wait a moment before trying again' 
+      });
+    }
+
     res.status(500).json({ 
       success: false, 
-      error: error.response?.data?.error || error.message || 'Chat failed' 
+      error: 'AI service temporarily unavailable - please try again' 
     });
   }
 });
