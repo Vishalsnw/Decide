@@ -75,6 +75,11 @@ app.use('/api/*', (req, res, next) => {
 app.use((err, req, res, next) => {
   console.error('Global error caught:', err);
 
+  // Ensure API routes always return JSON
+  if (req.path.startsWith('/api/')) {
+    res.setHeader('Content-Type', 'application/json');
+  }
+
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
     return res.status(400).json({
       success: false,
@@ -96,11 +101,16 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // Default error response
-  res.status(500).json({
-    success: false,
-    error: 'Internal server error'
-  });
+  // Default error response - always JSON for API routes
+  if (req.path.startsWith('/api/')) {
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+
+  // For non-API routes, send HTML error
+  res.status(500).send('Internal server error');
 });
 
 // Initialize GitHub client
