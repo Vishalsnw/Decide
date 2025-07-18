@@ -4,6 +4,27 @@ const axios = require('axios');
 const { Octokit } = require('@octokit/rest');
 const simpleGit = require('simple-git');
 const fs = require('fs-extra');
+
+// Ensure conversations.json is in .gitignore
+const ensureGitignore = () => {
+  const gitignorePath = path.join(__dirname, '.gitignore');
+  const conversationsEntry = 'conversations.json';
+  
+  try {
+    let gitignoreContent = '';
+    if (fs.existsSync(gitignorePath)) {
+      gitignoreContent = fs.readFileSync(gitignorePath, 'utf8');
+    }
+    
+    if (!gitignoreContent.includes(conversationsEntry)) {
+      fs.appendFileSync(gitignorePath, `\n${conversationsEntry}\n`);
+    }
+  } catch (error) {
+    console.error('Error updating .gitignore:', error.message);
+  }
+};
+
+ensureGitignore();
 const { exec } = require('child_process');
 const path = require('path');
 require('dotenv').config();
@@ -130,6 +151,36 @@ app.post('/api/debug-code', async (req, res) => {
 
 // Store conversation history per repository (persistent until project completion)
 const projectConversations = new Map();
+const CONVERSATIONS_FILE = path.join(__dirname, 'conversations.json');
+
+// Load existing conversations from file
+function loadConversations() {
+  try {
+    if (fs.existsSync(CONVERSATIONS_FILE)) {
+      const data = fs.readFileSync(CONVERSATIONS_FILE, 'utf8');
+      const conversations = JSON.parse(data);
+      Object.entries(conversations).forEach(([key, value]) => {
+        projectConversations.set(key, value);
+      });
+      console.log(`Loaded ${Object.keys(conversations).length} conversation histories`);
+    }
+  } catch (error) {
+    console.error('Error loading conversations:', error.message);
+  }
+}
+
+// Save conversations to file
+function saveConversations() {
+  try {
+    const conversations = Object.fromEntries(projectConversations);
+    fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(conversations, null, 2));
+  } catch (error) {
+    console.error('Error saving conversations:', error.message);
+  }
+}
+
+// Load conversations on startup
+loadConversations();
 
 // Chat with AI (Repository-aware with persistent history)
 app.post('/api/chat', async (req, res) => {
@@ -182,6 +233,9 @@ app.post('/api/chat', async (req, res) => {
     if (history.length > 40) {
       history.splice(0, history.length - 40);
     }
+
+    // Save conversations to disk after each interaction
+    saveConversations();
 
     res.json({
       success: true,
@@ -895,6 +949,32 @@ app.post('/api/fix-project-issues', async (req, res) => {
     });
   } catch (error) {
     console.error('Fix issues error:', error.message);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Clear conversation history for a specific repository
+app.post('/api/clear-conversation', async (req, res) => {
+  try {
+    const { repoName } = req.body;
+    
+    if (repoName && projectConversations.has(repoName)) {
+      projectConversations.delete(repoName);
+      saveConversations();
+      console.log(`Cleared conversation history for: ${repoName}`);
+    } else {
+      // Clear all conversations
+      projectConversations.clear();
+      saveConversations();
+      console.log('Cleared all conversation histories');
+    }
+
+    res.json({
+      success: true,
+      message: repoName ? `Cleared history for ${repoName}` : 'Cleared all conversation histories'
+    });
+  } catch (error) {
+    console.error('Clear conversation error:', error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });
