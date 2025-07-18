@@ -16,7 +16,7 @@ mode = "sequential"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "lsof -ti:5000 | xargs kill -9 || true"
+args = "pkill -f \"node server.js\" || true"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
