@@ -968,6 +968,7 @@
         // Global state
         let selectedRepo = null;
         let isTyping = false;
+        let sessionId = 'web-session-' + Date.now();
 
         // DOM elements
         const messagesArea = document.getElementById('messagesArea');
@@ -1062,6 +1063,12 @@
 
             if (type === 'command') {
                 line.innerHTML = `<span class="cli-prompt">$</span> <span class="cli-command">${text.substring(2)}</span>`;
+            } else if (type === 'info') {
+                line.innerHTML = `<div class="cli-output-line" style="color: #58a6ff;">${text}</div>`;
+            } else if (type === 'error') {
+                line.innerHTML = `<div class="cli-output-line" style="color: #f85149;">${text}</div>`;
+            } else if (type === 'success') {
+                line.innerHTML = `<div class="cli-output-line" style="color: #56d364;">${text}</div>`;
             } else {
                 line.innerHTML = `<div class="cli-output-line">${text}</div>`;
             }
@@ -1078,6 +1085,7 @@
                 addCliLine('/help - Show this help');
                 addCliLine('/status - Check server status');
                 addCliLine('/clear - Clear terminal');
+                addCliLine('/memory - Show memory stats');
                 addCliLine('/generate [prompt] - Generate code');
                 addCliLine('/fix [error] - Fix error and apply solution');
                 addCliLine('/preview - Show live preview');
@@ -1093,6 +1101,23 @@
                 } catch (error) {
                     addCliLine(`❌ Error: ${error.message}`);
                 }
+            } else if (cmd === '/memory') {
+                try {
+                    const response = await fetch(`/api/memory?sessionId=${sessionId}`);
+                    const data = await response.json();
+                    if (data.success) {
+                        addCliLine(`💭 Memory Statistics:`, 'info');
+                        addCliLine(`Total conversations: ${data.totalConversations}`);
+                        if (data.conversation) {
+                            addCliLine(`Current session messages: ${data.conversation.messages.length}`);
+                            addCliLine(`Session created: ${new Date(data.conversation.created).toLocaleString()}`);
+                        }
+                    } else {
+                        addCliLine(`❌ Error: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    addCliLine(`❌ Error: ${error.message}`, 'error');
+                }
             } else if (cmd === '/clear') {
                 cliOutput.innerHTML = `
                     <div class="cli-line">
@@ -1100,7 +1125,7 @@
                         <span class="cli-command">AI CLI Ready</span>
                     </div>
                     <div class="cli-output-line">Type commands or chat with AI directly here</div>
-                    <div class="cli-output-line info">Commands: /help, /status, /generate, /fix, /preview, /clear</div>
+                    <div class="cli-output-line info">Commands: /help, /status, /memory, /generate, /fix, /preview, /clear</div>
                 `;
             } else if (cmd.startsWith('/generate ')) {
                 const prompt = command.substring(10);
@@ -1140,50 +1165,64 @@
 
         async function sendChatFromCli(message) {
             try {
-                addCliLine('🤖 AI is thinking...');
+                addCliLine('🤖 AI is thinking...', 'info');
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message })
+                    body: JSON.stringify({ 
+                        message: message,
+                        selectedRepo: selectedRepo,
+                        sessionId: sessionId
+                    })
                 });
 
                 const data = await response.json();
                 if (data.success) {
-                    addCliLine('🤖 AI: ' + data.response);
+                    addCliLine('🤖 AI: ' + data.response, 'success');
+                    if (data.memoryContext) {
+                        addCliLine(`💭 Session has ${data.memoryContext.totalConversations} messages`, 'info');
+                    }
                 } else {
-                    addCliLine(`❌ Error: ${data.error}`);
+                    addCliLine(`❌ Error: ${data.error}`, 'error');
                 }
             } catch (error) {
-                addCliLine(`❌ Error: ${error.message}`);
+                addCliLine(`❌ Error: ${error.message}`, 'error');
             }
         }
 
         async function fixErrorFromCli(errorDesc) {
             try {
-                addCliLine('🔧 Analyzing and fixing error...');
+                addCliLine('🔧 Analyzing and fixing error...', 'info');
                 const response = await fetch('/api/fix-and-commit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         error: errorDesc,
                         action: 'fix_and_apply',
-                        description: `CLI fix request for: ${errorDesc}`
+                        description: `CLI fix request for: ${errorDesc}`,
+                        sessionId: sessionId
                     })
                 });
 
                 const data = await response.json();
                 if (data.success) {
-                    addCliLine('✅ Error fixed successfully!');
-                    addCliLine('📝 Solution applied:');
+                    addCliLine('✅ Error analysis complete!', 'success');
+                    addCliLine('📝 Solution:', 'info');
                     addCliLine(data.solution);
-                    if (data.filesChanged) {
-                        addCliLine(`📁 Files modified: ${data.filesChanged.join(', ')}`);
+                    
+                    if (data.applied) {
+                        addCliLine(`🎉 Fix automatically applied to files!`, 'success');
+                        addCliLine(`📁 Files modified: ${data.filesChanged.join(', ')}`, 'info');
+                    } else if (data.fixedCode) {
+                        addCliLine('💡 Fixed code available:', 'info');
+                        addCliLine(data.fixedCode);
+                        addCliLine('ℹ️ Copy the code above and apply it manually', 'info');
                     }
                 } else {
-                    addCliLine(`❌ Fix failed: ${data.error}`);
+                    addCliLine(`❌ Fix failed: ${data.error}`, 'error');
                 }
             } catch (error) {
-                addCliLine(`❌ Error: ${error.message}`);
+                addCliLine(`❌ Error: ${error.message}`, 'error');
             }
         }
 
@@ -1254,7 +1293,8 @@
                     },
                     body: JSON.stringify({
                         message: message,
-                        selectedRepo: selectedRepo
+                        selectedRepo: selectedRepo,
+                        sessionId: sessionId
                     })
                 });
 
@@ -1263,6 +1303,11 @@
 
                 if (data.success) {
                     addMessage(data.response, 'ai');
+                    
+                    // Show memory context if available
+                    if (data.memoryContext) {
+                        addCliLine(`💭 Memory: ${data.memoryContext.totalConversations} messages in session`);
+                    }
                 } else {
                     addMessage(`Error: ${data.error}`, 'error');
                 }

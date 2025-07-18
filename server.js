@@ -3,16 +3,84 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
+const fs = require('fs');
 const { Octokit } = require('@octokit/rest');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Memory storage
+const MEMORY_FILE = path.join(__dirname, 'memory.json');
+
 // Initialize GitHub client
 const octokit = process.env.GITHUB_TOKEN ? new Octokit({
   auth: process.env.GITHUB_TOKEN,
 }) : null;
+
+// Memory management functions
+function loadMemory() {
+  try {
+    if (fs.existsSync(MEMORY_FILE)) {
+      return JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf8'));
+    }
+  } catch (error) {
+    console.error('Error loading memory:', error);
+  }
+  return {
+    conversations: {},
+    repositories: {},
+    codeHistory: [],
+    errorFixes: []
+  };
+}
+
+function saveMemory(memory) {
+  try {
+    fs.writeFileSync(MEMORY_FILE, JSON.stringify(memory, null, 2));
+  } catch (error) {
+    console.error('Error saving memory:', error);
+  }
+}
+
+function addToMemory(sessionId, message, response, repo = null) {
+  const memory = loadMemory();
+  
+  if (!memory.conversations[sessionId]) {
+    memory.conversations[sessionId] = {
+      messages: [],
+      repository: repo,
+      created: new Date().toISOString(),
+      lastActive: new Date().toISOString()
+    };
+  }
+  
+  memory.conversations[sessionId].messages.push({
+    timestamp: new Date().toISOString(),
+    user: message,
+    ai: response
+  });
+  
+  memory.conversations[sessionId].lastActive = new Date().toISOString();
+  
+  saveMemory(memory);
+  return memory.conversations[sessionId];
+}
+
+function getMemoryContext(sessionId) {
+  const memory = loadMemory();
+  const conversation = memory.conversations[sessionId];
+  
+  if (!conversation) return null;
+  
+  const recentMessages = conversation.messages.slice(-5);
+  return {
+    totalConversations: Object.keys(memory.conversations).length,
+    currentSession: sessionId,
+    recentMessages: recentMessages,
+    repository: conversation.repository
+  };
+}
 
 // Basic middleware
 app.use(cors());
@@ -45,15 +113,26 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Chat endpoint with DeepSeek integration
+// Chat endpoint with DeepSeek integration and memory
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, selectedRepo } = req.body;
+    const { message, selectedRepo, sessionId = 'default' } = req.body;
     if (!message) {
       return res.status(400).json({
         success: false,
         error: 'Message is required'
       });
+    }
+
+    // Get memory context for better AI responses
+    const memoryContext = getMemoryContext(sessionId);
+    let contextualPrompt = message;
+    
+    if (memoryContext && memoryContext.recentMessages.length > 0) {
+      const recentContext = memoryContext.recentMessages.slice(-2)
+        .map(msg => `User: ${msg.user}\nAI: ${msg.ai}`)
+        .join('\n\n');
+      contextualPrompt = `Previous conversation context:\n${recentContext}\n\nCurrent message: ${message}`;
     }
 
     // If DeepSeek API key is available, use it
@@ -64,11 +143,11 @@ app.post('/api/chat', async (req, res) => {
           messages: [
             {
               role: 'system',
-              content: 'You are an AI coding assistant. Help with programming questions and code generation.'
+              content: `You are an AI coding assistant. You have memory of previous conversations and can reference them. Help with programming questions, code generation, and debugging. ${selectedRepo ? `Currently working with repository: ${selectedRepo.full_name}` : ''}`
             },
             {
               role: 'user',
-              content: message
+              content: contextualPrompt
             }
           ],
           max_tokens: 1000,
@@ -82,26 +161,44 @@ app.post('/api/chat', async (req, res) => {
 
         const aiResponse = response.data.choices[0].message.content;
         
+        // Save to memory
+        const conversationContext = addToMemory(sessionId, message, aiResponse, selectedRepo);
+        
         res.json({
           success: true,
           response: aiResponse,
           timestamp: new Date().toISOString(),
-          source: 'deepseek'
+          source: 'deepseek',
+          memoryContext: {
+            totalConversations: conversationContext.messages.length,
+            sessionId: sessionId,
+            repository: selectedRepo
+          }
         });
       } catch (aiError) {
         console.error('DeepSeek API error:', aiError.response?.data || aiError.message);
+        const fallbackResponse = `I'm having trouble connecting to the AI service right now. Here's what I can help with based on your message: "${message}"\n\nPlease try again or rephrase your question.`;
+        
+        // Still save to memory even with fallback
+        addToMemory(sessionId, message, fallbackResponse, selectedRepo);
+        
         res.json({
           success: true,
-          response: `I'm having trouble connecting to the AI service right now. Here's what I can help with based on your message: "${message}"\n\nPlease try again or rephrase your question.`,
+          response: fallbackResponse,
           timestamp: new Date().toISOString(),
           source: 'fallback'
         });
       }
     } else {
       // Fallback response without API key
+      const fallbackResponse = `I received your message: "${message}"\n\nTo enable full AI features, please add your DEEPSEEK_API_KEY to the environment variables.`;
+      
+      // Save to memory
+      addToMemory(sessionId, message, fallbackResponse, selectedRepo);
+      
       res.json({
         success: true,
-        response: `I received your message: "${message}"\n\nTo enable full AI features, please add your DEEPSEEK_API_KEY to the environment variables.`,
+        response: fallbackResponse,
         timestamp: new Date().toISOString(),
         source: 'fallback'
       });
@@ -311,10 +408,10 @@ app.post('/api/repo/generate-code', async (req, res) => {
   }
 });
 
-// Fix and commit endpoint
+// Fix and commit endpoint with actual file application
 app.post('/api/fix-and-commit', async (req, res) => {
   try {
-    const { error, description, action = 'analyze' } = req.body;
+    const { error, description, action = 'analyze', filePath, sessionId = 'default' } = req.body;
     
     if (!error) {
       return res.status(400).json({
@@ -334,10 +431,11 @@ app.post('/api/fix-and-commit', async (req, res) => {
 PROBLEM: [Brief description of the issue]
 SOLUTION: [Step-by-step fix]
 FIXED_CODE: [The exact corrected code]
+FILE_PATH: [The file path that needs to be fixed]
 
-Be specific and provide working code that fixes the issue.`;
+Be specific and provide working code that fixes the issue. Include the complete file content with the fix applied.`;
           
-          userPrompt = `Fix this error and provide the corrected code: ${error}\n\nContext: ${description || 'No additional context'}\n\nI need the actual fixed code, not just instructions.`;
+          userPrompt = `Fix this error and provide the corrected code: ${error}\n\nContext: ${description || 'No additional context'}\n\nFile path: ${filePath || 'Not specified'}\n\nI need the actual fixed code that I can apply to my files.`;
         } else {
           systemPrompt = 'You are a code debugging assistant. Analyze the error and provide a clear fix with explanation. Focus on the root cause and provide actionable solutions.';
           userPrompt = `I'm getting this error: ${error}\n\nAdditional context: ${description || 'No additional context provided'}\n\nPlease help me fix this issue.`;
@@ -366,15 +464,44 @@ Be specific and provide working code that fixes the issue.`;
 
         const solution = response.data.choices[0].message.content;
         
-        // If this is a fix_and_apply action, try to extract the fixed code
+        // Save error fix to memory
+        const memory = loadMemory();
+        memory.errorFixes.push({
+          timestamp: new Date().toISOString(),
+          error: error,
+          solution: solution,
+          action: action,
+          filePath: filePath,
+          sessionId: sessionId
+        });
+        saveMemory(memory);
+        
+        // If this is a fix_and_apply action, try to extract and apply the fixed code
         let fixedCode = null;
         let filesChanged = [];
+        let applied = false;
         
         if (action === 'fix_and_apply') {
           const codeMatch = solution.match(/FIXED_CODE:\s*([\s\S]*?)(?=\n\n|$)/);
+          const filePathMatch = solution.match(/FILE_PATH:\s*(.+)/);
+          
           if (codeMatch) {
             fixedCode = codeMatch[1].trim();
-            filesChanged = ['Automatically detected files'];
+            const targetFile = filePathMatch ? filePathMatch[1].trim() : filePath;
+            
+            if (targetFile && fixedCode) {
+              try {
+                // Apply the fix to the file
+                const fullPath = path.join(__dirname, targetFile);
+                if (fs.existsSync(fullPath) || targetFile.startsWith('public/') || targetFile.endsWith('.js') || targetFile.endsWith('.html')) {
+                  fs.writeFileSync(fullPath, fixedCode);
+                  filesChanged.push(targetFile);
+                  applied = true;
+                }
+              } catch (fileError) {
+                console.error('Error applying fix:', fileError);
+              }
+            }
           }
         }
         
@@ -383,6 +510,7 @@ Be specific and provide working code that fixes the issue.`;
           solution: solution,
           fixedCode: fixedCode,
           filesChanged: filesChanged,
+          applied: applied,
           action: action,
           timestamp: new Date().toISOString(),
           error_analyzed: error
@@ -405,6 +533,70 @@ Be specific and provide working code that fixes the issue.`;
     res.status(500).json({
       success: false,
       error: 'Error analysis failed'
+    });
+  }
+});
+
+// Memory endpoint
+app.get('/api/memory', (req, res) => {
+  try {
+    const { sessionId } = req.query;
+    const memory = loadMemory();
+    
+    if (sessionId) {
+      const conversation = memory.conversations[sessionId];
+      res.json({
+        success: true,
+        conversation: conversation,
+        totalConversations: Object.keys(memory.conversations).length
+      });
+    } else {
+      res.json({
+        success: true,
+        totalConversations: Object.keys(memory.conversations).length,
+        totalErrorFixes: memory.errorFixes.length,
+        totalCodeHistory: memory.codeHistory.length
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load memory'
+    });
+  }
+});
+
+// Clear conversation endpoint
+app.post('/api/clear-conversation', (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    const memory = loadMemory();
+    
+    if (sessionId && memory.conversations[sessionId]) {
+      delete memory.conversations[sessionId];
+      saveMemory(memory);
+      res.json({
+        success: true,
+        message: 'Conversation cleared'
+      });
+    } else if (!sessionId) {
+      // Clear all conversations
+      memory.conversations = {};
+      saveMemory(memory);
+      res.json({
+        success: true,
+        message: 'All conversations cleared'
+      });
+    } else {
+      res.json({
+        success: false,
+        error: 'Conversation not found'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear conversation'
     });
   }
 });
