@@ -22,7 +22,12 @@ const ensureGitignore = () => {
       fs.appendFileSync(gitignorePath, `\n${conversationsEntry}\n`);
     }
   } catch (error) {
-    console.error('Error updating .gitignore:', error.message);
+    // Skip .gitignore update in read-only environments (like deployments)
+    if (error.code === 'EROFS') {
+      console.log('📝 Skipping .gitignore update (read-only file system)');
+    } else {
+      console.error('Error updating .gitignore:', error.message);
+    }
   }
 };
 
