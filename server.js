@@ -33,6 +33,7 @@ const ensureGitignore = () => {
 
 ensureGitignore();
 const { exec } = require('child_process');
+const readline = require('readline');
 require('dotenv').config();
 
 const app = express();
@@ -961,7 +962,6 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 
 server.on('error', (err) => {
   console.error('❌ Server error occurred:', err);
-```text
   if (err.code === 'EADDRINUSE') {
     console.error(`❌ Port ${PORT} is already in use`);
   } else {

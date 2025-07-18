@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Code Assistant - Replit Clone</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>AI Coding Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -13,213 +13,141 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
-            background: #0d1117;
-            color: #e6edf3;
-            height: 100vh;
-            overflow: hidden;
+            background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            color: #c9d1d9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
         .container {
             display: flex;
-            height: 100vh;
             flex-direction: column;
+            height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
-        /* Header */
         .header {
-            background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
+            background: rgba(22, 27, 34, 0.95);
+            backdrop-filter: blur(10px);
             border-bottom: 1px solid #30363d;
-            padding: 10px 16px;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-left {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            min-height: 60px;
-            flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            gap: 16px;
         }
 
         .logo {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 18px;
+            gap: 12px;
+            font-size: 20px;
             font-weight: 700;
-            background: linear-gradient(135deg, #58a6ff, #7c3aed);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #58a6ff;
         }
 
         .logo i {
-            background: linear-gradient(135deg, #58a6ff, #7c3aed);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-size: 20px;
+            font-size: 24px;
         }
 
         .header-center {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             flex: 1;
+            min-width: 200px;
             justify-content: center;
-            min-width: 0;
         }
 
-        .repo-status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        .repo-selector {
             background: #21262d;
             border: 1px solid #30363d;
             border-radius: 8px;
             padding: 8px 12px;
-            transition: all 0.2s;
-        }
-
-        .repo-status.connected {
-            background: linear-gradient(135deg, #238636, #2ea043);
-            border-color: #238636;
-            color: white;
-        }
-
-        .repo-status i {
-            font-size: 14px;
-        }
-
-        .repo-name {
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .action-btn {
-            background: linear-gradient(135deg, #238636, #2ea043);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
+            color: #c9d1d9;
             cursor: pointer;
+            transition: all 0.2s;
             display: flex;
             align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-            white-space: nowrap;
+            gap: 8px;
+            min-width: 160px;
         }
 
-        .action-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3);
+        .repo-selector:hover {
+            border-color: #58a6ff;
+            background: #262c36;
         }
 
-        .action-btn:disabled {
-            background: linear-gradient(135deg, #484f58, #6e7681);
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        .action-btn.secondary {
-            background: linear-gradient(135deg, #21262d, #30363d);
-            border: 1px solid #30363d;
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
         }
 
-        .action-btn.secondary:hover {
-            background: linear-gradient(135deg, #30363d, #484f58);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        .status-online {
+            background: rgba(86, 211, 100, 0.1);
+            color: #56d364;
+            border: 1px solid rgba(86, 211, 100, 0.3);
         }
 
-        /* Progress Indicator */
-        .progress-bar {
-            height: 2px;
-            background: #21262d;
-            position: relative;
+        .status-offline {
+            background: rgba(248, 81, 73, 0.1);
+            color: #f85149;
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+
+        .main-content {
+            display: flex;
+            flex: 1;
             overflow: hidden;
-            display: none;
         }
 
-        .progress-bar.active {
-            display: block;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #58a6ff, #7c3aed);
-            width: 0%;
-            transition: width 0.3s;
-            position: relative;
-        }
-
-        .progress-fill::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transform: translateX(-100%);
-            animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-            100% { transform: translateX(100%); }
-        }
-
-        /* Chat Container */
         .chat-container {
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            min-height: 0;
-            position: relative;
+            height: 100%;
         }
 
-        .messages {
+        .messages-area {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+            padding: 24px;
             scroll-behavior: smooth;
         }
 
-        .messages::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .messages::-webkit-scrollbar-track {
-            background: #161b22;
-        }
-
-        .messages::-webkit-scrollbar-thumb {
-            background: #30363d;
-            border-radius: 3px;
-        }
-
         .message {
-            max-width: 80%;
-            padding: 16px 20px;
-            border-radius: 16px;
-            font-size: 15px;
-            line-height: 1.6;
-            word-wrap: break-word;
-            position: relative;
-            animation: messageSlide 0.3s ease-out;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            opacity: 0;
+            animation: slideIn 0.3s ease-out forwards;
         }
 
-        @keyframes messageSlide {
+        @keyframes slideIn {
             from {
                 opacity: 0;
                 transform: translateY(10px);
@@ -230,247 +158,131 @@
             }
         }
 
-        .message.user {
-            background: linear-gradient(135deg, #1f6feb, #3b82f6);
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 6px;
-            box-shadow: 0 2px 8px rgba(31, 111, 235, 0.3);
-        }
-
-        .message.assistant {
-            background: #21262d;
-            color: #e6edf3;
-            border: 1px solid #30363d;
-            align-self: flex-start;
-            border-bottom-left-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-
-        .message.system {
-            background: linear-gradient(135deg, #7c3aed, #a855f7);
-            color: white;
-            align-self: center;
-            font-size: 14px;
-            text-align: center;
-            border-radius: 20px;
-            padding: 8px 16px;
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
-        }
-
-        .message.success {
-            background: linear-gradient(135deg, #238636, #2ea043);
-            color: white;
-            border-left: 4px solid #56d364;
-        }
-
-        .message.error {
-            background: linear-gradient(135deg, #da3633, #f85149);
-            color: white;
-            border-left: 4px solid #ff6b6b;
-        }
-
-        .message-timestamp {
-            font-size: 11px;
-            opacity: 0.7;
-            margin-top: 8px;
-            text-align: right;
-        }
-
-        .welcome {
-            text-align: center;
-            padding: 60px 20px;
-            background: linear-gradient(135deg, rgba(88, 166, 255, 0.1), rgba(124, 58, 237, 0.1));
-            border-radius: 16px;
-            margin: 20px;
-            border: 1px solid #30363d;
-        }
-
-        .welcome-icon {
-            font-size: 48px;
-            background: linear-gradient(135deg, #58a6ff, #7c3aed);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 16px;
-        }
-
-        .welcome h2 {
-            color: #e6edf3;
-            margin-bottom: 12px;
-            font-size: 24px;
-            font-weight: 700;
-        }
-
-        .welcome p {
-            max-width: 400px;
-            margin: 0 auto 24px;
-            line-height: 1.6;
-            font-size: 16px;
-            color: #7d8590;
-        }
-
-        .feature-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-top: 24px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .feature-card {
-            background: #21262d;
-            border: 1px solid #30363d;
-            border-radius: 12px;
-            padding: 16px;
-            text-align: center;
-        }
-
-        .feature-card i {
-            font-size: 24px;
-            color: #58a6ff;
-            margin-bottom: 8px;
-        }
-
-        .feature-card h4 {
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-
-        .feature-card p {
-            font-size: 12px;
-            color: #7d8590;
-            margin: 0;
-        }
-
-        /* Enhanced Input Area */
-        .input-area {
-            border-top: 1px solid #30363d;
-            padding: 20px;
-            background: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-            flex-shrink: 0;
-        }
-
-        .input-container {
-            display: flex;
-            gap: 12px;
-            align-items: flex-end;
-            max-width: 1000px;
-            margin: 0 auto;
-            position: relative;
-        }
-
-        .input-wrapper {
-            flex: 1;
-            position: relative;
-        }
-
-        .input-box {
-            width: 100%;
-            background: #0d1117;
-            border: 2px solid #30363d;
-            border-radius: 12px;
-            padding: 16px 20px;
-            color: #e6edf3;
-            font-size: 15px;
-            resize: none;
-            min-height: 50px;
-            max-height: 120px;
-            font-family: inherit;
-            line-height: 1.5;
-            transition: all 0.2s;
-        }
-
-        .input-box:focus {
-            outline: none;
-            border-color: #58a6ff;
-            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
-        }
-
-        .input-box::placeholder {
-            color: #7d8590;
-        }
-
-        .input-actions {
-            display: flex;
-            gap: 8px;
-            flex-shrink: 0;
-        }
-
-        .send-btn {
-            background: linear-gradient(135deg, #238636, #2ea043);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 16px 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-            min-width: 50px;
-            font-weight: 600;
-        }
-
-        .send-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(35, 134, 54, 0.4);
-        }
-
-        .send-btn:disabled {
-            background: linear-gradient(135deg, #484f58, #6e7681);
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .voice-btn {
-            background: linear-gradient(135deg, #7c3aed, #a855f7);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .voice-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
-        }
-
-        /* Enhanced Typing Indicator */
-        .typing {
-            display: none;
-            align-self: flex-start;
-            background: #21262d;
-            border: 1px solid #30363d;
-            border-radius: 16px;
-            border-bottom-left-radius: 6px;
-            padding: 16px 20px;
-            margin-bottom: 16px;
-        }
-
-        .typing-content {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .typing-avatar {
-            width: 24px;
-            height: 24px;
-            background: linear-gradient(135deg, #58a6ff, #7c3aed);
+        .message-avatar {
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 12px;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .user-avatar {
+            background: linear-gradient(135deg, #58a6ff, #1f6feb);
             color: white;
+        }
+
+        .ai-avatar {
+            background: linear-gradient(135deg, #56d364, #238636);
+            color: white;
+        }
+
+        .error-avatar {
+            background: linear-gradient(135deg, #f85149, #da3633);
+            color: white;
+        }
+
+        .success-avatar {
+            background: linear-gradient(135deg, #56d364, #238636);
+            color: white;
+        }
+
+        .message-content {
+            flex: 1;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 16px;
+            position: relative;
+        }
+
+        .user-message .message-content {
+            background: #1f2937;
+            border-color: #374151;
+        }
+
+        .error-message .message-content {
+            background: rgba(248, 81, 73, 0.1);
+            border-color: rgba(248, 81, 73, 0.3);
+        }
+
+        .success-message .message-content {
+            background: rgba(86, 211, 100, 0.1);
+            border-color: rgba(86, 211, 100, 0.3);
+        }
+
+        .message-text {
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .message-text h1, .message-text h2, .message-text h3 {
+            color: #58a6ff;
+            margin: 16px 0 8px 0;
+        }
+
+        .message-text h1 { font-size: 24px; }
+        .message-text h2 { font-size: 20px; }
+        .message-text h3 { font-size: 16px; }
+
+        .message-text strong {
+            color: #58a6ff;
             font-weight: 600;
+        }
+
+        .message-text code {
+            background: #262c36;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, 'Consolas', monospace;
+            font-size: 14px;
+            color: #ff7b72;
+        }
+
+        .message-text pre {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            overflow-x: auto;
+            margin: 12px 0;
+            font-family: 'SF Mono', Monaco, 'Consolas', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .typing {
+            margin-bottom: 24px;
+            display: none;
+            opacity: 0;
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        .typing.show {
+            display: flex;
+        }
+
+        .typing-content {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .typing-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #56d364, #238636);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
         }
 
         .typing-dots {
@@ -494,7 +306,98 @@
             30% { opacity: 1; transform: scale(1.2); }
         }
 
-        /* Repository Modal */
+        .input-area {
+            padding: 24px;
+            background: rgba(22, 27, 34, 0.95);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid #30363d;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .input-box {
+            width: 100%;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: #c9d1d9;
+            font-size: 16px;
+            line-height: 1.4;
+            resize: none;
+            font-family: inherit;
+            transition: all 0.2s;
+            max-height: 120px;
+            min-height: 48px;
+        }
+
+        .input-box:focus {
+            outline: none;
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+
+        .input-box::placeholder {
+            color: #7d8590;
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .voice-btn, .send-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 16px;
+        }
+
+        .voice-btn {
+            background: #21262d;
+            color: #7d8590;
+            border: 1px solid #30363d;
+        }
+
+        .voice-btn:hover {
+            background: #262c36;
+            color: #c9d1d9;
+        }
+
+        .send-btn {
+            background: linear-gradient(135deg, #238636, #2ea043);
+            color: white;
+        }
+
+        .send-btn:hover {
+            background: linear-gradient(135deg, #2ea043, #238636);
+            transform: translateY(-1px);
+        }
+
+        .send-btn:disabled {
+            background: #30363d;
+            color: #7d8590;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -530,23 +433,10 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-            animation: modalSlide 0.3s ease-out;
-        }
-
-        @keyframes modalSlide {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
         }
 
         .modal-header {
-            padding: 20px 24px;
+            padding: 20px;
             border-bottom: 1px solid #30363d;
             display: flex;
             justify-content: space-between;
@@ -554,42 +444,41 @@
         }
 
         .modal-title {
-            font-size: 20px;
-            font-weight: 700;
-            background: linear-gradient(135deg, #58a6ff, #7c3aed);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            font-size: 18px;
+            font-weight: 600;
+            color: #c9d1d9;
         }
 
-        .close-btn {
+        .modal-close {
             background: none;
             border: none;
             color: #7d8590;
-            font-size: 20px;
             cursor: pointer;
-            padding: 8px;
-            border-radius: 8px;
-            transition: all 0.2s;
+            font-size: 20px;
+            padding: 4px;
         }
 
-        .close-btn:hover {
-            color: #e6edf3;
-            background: #30363d;
+        .modal-close:hover {
+            color: #c9d1d9;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
         }
 
         .repo-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .repo-item {
-            background: #0d1117;
+            background: #21262d;
             border: 1px solid #30363d;
             border-radius: 12px;
             padding: 16px;
-            margin-bottom: 12px;
             cursor: pointer;
             transition: all 0.2s;
             position: relative;
@@ -643,7 +532,25 @@
             background: #56d364;
         }
 
-        /* Mobile Responsive */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: #7d8590;
+        }
+
+        .progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #58a6ff, #1f6feb);
+            z-index: 2000;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
         @media (max-width: 768px) {
             .header {
                 padding: 12px;
@@ -655,208 +562,80 @@
                 order: 3;
                 flex-basis: 100%;
                 justify-content: flex-start;
-                margin-top: 8px;
             }
 
-            .logo {
-                font-size: 16px;
-            }
-
-            .action-btn {
-                font-size: 12px;
-                padding: 6px 12px;
-            }
-
-            .message {
-                max-width: 90%;
-                font-size: 14px;
-                padding: 12px 16px;
+            .messages-area {
+                padding: 16px;
             }
 
             .input-area {
                 padding: 16px;
             }
 
-            .input-box {
-                font-size: 16px;
-                padding: 14px 16px;
-            }
-
-            .feature-grid {
-                grid-template-columns: 1fr;
-                gap: 12px;
-            }
-
-            .welcome {
-                padding: 40px 16px;
-                margin: 16px;
-            }
-
-            .welcome h2 {
-                font-size: 20px;
-            }
-
-            .welcome p {
-                font-size: 14px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .header {
-                padding: 8px;
-            }
-
-            .logo {
-                font-size: 14px;
-            }
-
-            .action-btn {
-                font-size: 11px;
-                padding: 6px 8px;
-            }
-
-            .action-btn .fa-github {
-                display: none;
-            }
-
             .message {
-                max-width: 95%;
-                font-size: 13px;
-                padding: 10px 14px;
+                margin-bottom: 16px;
             }
 
-            .input-container {
-                gap: 8px;
+            .message-avatar {
+                width: 28px;
+                height: 28px;
+                font-size: 12px;
             }
 
-            .input-box {
-                font-size: 16px;
-                padding: 12px 14px;
-            }
-
-            .send-btn, .voice-btn {
+            .message-content {
                 padding: 12px;
-                min-width: 44px;
             }
-        }
-
-        /* Loading Spinner */
-        .spinner {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Status Indicators */
-        .status-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .status-indicator.online {
-            background: rgba(35, 134, 54, 0.2);
-            color: #56d364;
-        }
-
-        .status-indicator.offline {
-            background: rgba(248, 81, 73, 0.2);
-            color: #f85149;
-        }
-
-        .pulse-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: currentColor;
-            animation: pulse-dot 2s infinite;
-        }
-
-        @keyframes pulse-dot {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
         }
     </style>
 </head>
 <body>
+    <div class="progress-bar" id="progressBar"></div>
+
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <div class="logo">
-                <i class="fas fa-robot"></i>
-                AI Assistant
+            <div class="header-left">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    AI Coding Assistant
+                </div>
             </div>
 
             <div class="header-center">
-                <div class="repo-status" id="repoStatus">
-                    <i class="fas fa-folder"></i>
-                    <span class="repo-name" id="repoName">No repository connected</span>
-                </div>
-                <div class="status-indicator online">
-                    <div class="pulse-dot"></div>
-                    AI Ready
-                </div>
-            </div>
-
-            <div class="header-actions">
-                <button class="action-btn secondary" id="clearChat">
-                    <i class="fas fa-trash"></i>
-                    Clear
-                </button>
-                <button class="action-btn" id="importBtn">
+                <div class="repo-selector" id="repoSelector">
                     <i class="fab fa-github"></i>
-                    Import Repo
-                </button>
+                    <span id="repoText">Select Repository</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
+            </div>
+
+            <div class="header-right">
+                <div class="status-indicator status-offline" id="statusIndicator">
+                    <i class="fas fa-circle"></i>
+                    <span id="statusText">Offline</span>
+                </div>
             </div>
         </div>
 
-        <!-- Progress Bar -->
-        <div class="progress-bar" id="progressBar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="chat-container">
+                <!-- Messages Area -->
+                <div class="messages-area" id="messagesArea">
+                    <div class="message ai-message">
+                        <div class="message-avatar ai-avatar">AI</div>
+                        <div class="message-content">
+                            <div class="message-text">
+                                <strong>🤖 AI Coding Assistant Ready!</strong>
 
-        <!-- Chat Container -->
-        <div class="chat-container">
-            <div class="messages" id="messages">
-                <div class="welcome">
-                    <div class="welcome-icon">
-                        <i class="fas fa-magic"></i>
-                    </div>
-                    <h2>Welcome to AI Code Assistant</h2>
-                    <p>Your intelligent coding companion. Import a repository and start building with AI assistance. I can create, modify, debug, and enhance your code automatically.</p>
+                                I can help you with:
+                                • **Code Generation** - Build apps, features, and components
+                                • **Error Fixing** - Paste your code and I'll fix issues
+                                • **Code Review** - Get suggestions and improvements
+                                • **GitHub Integration** - Work directly with your repositories
 
-                    <div class="feature-grid">
-                        <div class="feature-card">
-                            <i class="fas fa-code"></i>
-                            <h4>Smart Coding</h4>
-                            <p>Generate complete projects</p>
-                        </div>
-                        <div class="feature-card">
-                            <i class="fas fa-git-alt"></i>
-                            <h4>Auto Deploy</h4>
-                            <p>Commit & push automatically</p>
-                        </div>
-                        <div class="feature-card">
-                            <i class="fas fa-mobile-alt"></i>
-                            <h4>Responsive</h4>
-                            <p>Mobile-first design</p>
-                        </div>
-                        <div class="feature-card">
-                            <i class="fas fa-brain"></i>
-                            <h4>AI Memory</h4>
-                            <p>Remembers your project</p>
+                                Select a repository above or just start describing what you want to build!
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -872,26 +651,26 @@
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Enhanced Input Area -->
-            <div class="input-area">
-                <div class="input-container">
-                    <div class="input-wrapper">
-                        <textarea 
-                            class="input-box" 
-                            id="messageInput" 
-                            placeholder="Describe what you want to build, fix, or modify..."
-                            rows="1"
-                        ></textarea>
-                    </div>
-                    <div class="input-actions">
-                        <button class="voice-btn" id="voiceBtn" title="Voice Input">
-                            <i class="fas fa-microphone"></i>
-                        </button>
-                        <button class="send-btn" id="sendBtn">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
+                <!-- Input Area -->
+                <div class="input-area">
+                    <div class="input-container">
+                        <div class="input-wrapper">
+                            <textarea 
+                                class="input-box" 
+                                id="messageInput" 
+                                placeholder="Describe what you want to build, fix, or modify..."
+                                rows="1"
+                            ></textarea>
+                        </div>
+                        <div class="input-actions">
+                            <button class="voice-btn" id="voiceBtn" title="Voice Input">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <button class="send-btn" id="sendBtn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -902,217 +681,179 @@
     <div class="modal-overlay" id="repoModal">
         <div class="modal-content">
             <div class="modal-header">
-                <div class="modal-title">Select Repository</div>
-                <button class="close-btn" id="closeModal">
+                <h3 class="modal-title">Select Repository</h3>
+                <button class="modal-close" id="modalClose">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="repo-list" id="repoList">
-                <div style="text-align: center; padding: 40px; color: #7d8590;">
-                    <div class="spinner" style="width: 24px; height: 24px; margin-bottom: 16px;"></div>
+            <div class="modal-body">
+                <div class="loading" id="repoLoading">
+                    <i class="fas fa-spinner fa-spin"></i>
                     Loading repositories...
                 </div>
+                <div class="repo-list" id="repoList"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Global State
+        // Global state
         let selectedRepo = null;
-        let conversationHistory = [];
-        let isGenerating = false;
+        let isTyping = false;
 
-        // Initialize Application
-        document.addEventListener('DOMContentLoaded', function() {
+        // DOM elements
+        const messagesArea = document.getElementById('messagesArea');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const voiceBtn = document.getElementById('voiceBtn');
+        const repoSelector = document.getElementById('repoSelector');
+        const repoText = document.getElementById('repoText');
+        const repoModal = document.getElementById('repoModal');
+        const modalClose = document.getElementById('modalClose');
+        const repoList = document.getElementById('repoList');
+        const repoLoading = document.getElementById('repoLoading');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const statusText = document.getElementById('statusText');
+        const typing = document.getElementById('typing');
+        const progressBar = document.getElementById('progressBar');
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
             setupEventListeners();
-            autoResizeTextarea();
-            loadConversationHistory();
+            checkServerStatus();
+            adjustTextareaHeight();
         });
 
         function setupEventListeners() {
-            // Import repository
-            document.getElementById('importBtn').addEventListener('click', showRepoModal);
-
-            // Clear chat
-            document.getElementById('clearChat').addEventListener('click', clearConversation);
-
-            // Modal controls
-            document.getElementById('closeModal').addEventListener('click', hideRepoModal);
-            document.getElementById('repoModal').addEventListener('click', function(e) {
-                if (e.target.id === 'repoModal') hideRepoModal();
+            sendBtn.addEventListener('click', handleSendMessage);
+            messageInput.addEventListener('keydown', handleKeyDown);
+            messageInput.addEventListener('input', adjustTextareaHeight);
+            repoSelector.addEventListener('click', openRepoModal);
+            modalClose.addEventListener('click', closeRepoModal);
+            repoModal.addEventListener('click', (e) => {
+                if (e.target === repoModal) closeRepoModal();
             });
-
-            // Message controls
-            document.getElementById('sendBtn').addEventListener('click', sendMessage);
-            document.getElementById('voiceBtn').addEventListener('click', startVoiceInput);
-
-            // Input handling
-            const input = document.getElementById('messageInput');
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-            input.addEventListener('input', autoResizeTextarea);
         }
 
-        // Repository Management
-        async function showRepoModal() {
-            const modal = document.getElementById('repoModal');
-            const btn = document.getElementById('importBtn');
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+            }
+        }
 
-            btn.disabled = true;
-            btn.innerHTML = '<div class="spinner"></div> Loading...';
+        function adjustTextareaHeight() {
+            messageInput.style.height = 'auto';
+            messageInput.style.height = Math.min(messageInput.scrollHeight, 120) + 'px';
+        }
 
-            modal.classList.add('show');
-
+        async function checkServerStatus() {
             try {
-                const response = await fetch('/api/github/repos');
+                const response = await fetch('/api/health');
                 const data = await response.json();
 
                 if (data.success) {
-                    displayRepositories(data.repos);
+                    updateStatus('online', 'Online');
                 } else {
-                    showRepoError(data.error);
+                    updateStatus('offline', 'Offline');
                 }
             } catch (error) {
-                showRepoError(error.message);
+                updateStatus('offline', 'Offline');
             }
-
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fab fa-github"></i> Import Repo';
         }
 
-        function hideRepoModal() {
-            document.getElementById('repoModal').classList.remove('show');
+        function updateStatus(status, text) {
+            statusIndicator.className = `status-indicator status-${status}`;
+            statusText.textContent = text;
         }
 
-        function displayRepositories(repos) {
-            const container = document.getElementById('repoList');
-
-            if (repos.length === 0) {
-                container.innerHTML = 
-                    '<div style="text-align: center; padding: 40px; color: #7d8590;">' +
-                    '<i class="fas fa-folder-open" style="font-size: 32px; margin-bottom: 16px;"></i><br>' +
-                    'No repositories found' +
-                    '</div>';
-                return;
+        function showProgress(percentage) {
+            progressBar.style.width = percentage + '%';
+            if (percentage >= 100) {
+                setTimeout(() => {
+                    progressBar.style.width = '0%';
+                }, 500);
             }
-
-            container.innerHTML = repos.map(function(repo) {
-                return `
-                    <div class="repo-item" data-repo="${encodeURIComponent(JSON.stringify(repo))}">
-                        <div class="repo-item-header">
-                            <div class="repo-name">${repo.name}</div>
-                            ${repo.private ? '<i class="fas fa-lock" style="color: #f85149;"></i>' : '<i class="fas fa-globe" style="color: #7d8590;"></i>'}
-                        </div>
-                        <div class="repo-desc">${repo.description || 'No description available'}</div>
-                        <div class="repo-meta">
-                            <div class="repo-lang">
-                                <div class="lang-dot"></div>
-                                ${repo.language || 'Unknown'}
-                            </div>
-                            <span><i class="fas fa-clock"></i> ${formatDate(repo.updated_at)}</span>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            // Add event listeners
-            document.querySelectorAll('.repo-item').forEach(function(item) {
-                item.addEventListener('click', function() {
-                    const repoData = JSON.parse(decodeURIComponent(this.dataset.repo));
-                    selectRepository(repoData);
-                });
-            });
         }
 
-        function showRepoError(error) {
-            document.getElementById('repoList').innerHTML = 
-                `<div style="text-align: center; padding: 40px; color: #f85149;">
-                    <i class="fas fa-exclamation-triangle" style="font-size: 32px; margin-bottom: 16px;"></i><br>
-                    <strong>Failed to load repositories</strong><br>
-                    <small style="color: #7d8590; margin-top: 8px; display: block;">${error}</small>
-                </div>`;
+        function hideProgress() {
+            progressBar.style.width = '0%';
         }
 
-        function selectRepository(repo) {
-            selectedRepo = repo;
-
-            // Update UI
-            const status = document.getElementById('repoStatus');
-            const repoName = document.getElementById('repoName');
-
-            status.classList.add('connected');
-            repoName.textContent = repo.name;
-
-            hideRepoModal();
-            clearWelcome();
-
-            // Add connection message
-            addMessage('system', `🔗 Connected to repository: ${repo.name}`);
-            addMessage('assistant', 
-                `Great! I'm now connected to your "${repo.name}" repository. I have persistent memory of our conversation and can:\n\n` +
-                `• **Create complete projects** with all necessary files\n` +
-                `• **Modify existing code** intelligently\n` +
-                `• **Fix bugs and add features** automatically\n` +
-                `• **Auto-commit and push** all changes\n` +
-                `• **Remember our conversation** until project completion\n\n` +
-                `What would you like to build or improve today?`
-            );
+        function showTyping() {
+            typing.classList.add('show');
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+            isTyping = true;
         }
 
-        // Enhanced Message Handling
-        async function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const message = input.value.trim();
+        function hideTyping() {
+            typing.classList.remove('show');
+            isTyping = false;
+        }
 
-            if (!message || isGenerating) return;
+        function addMessage(type, content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
 
-            isGenerating = true;
-            updateSendButton(true);
+            const avatarClass = isUser ? 'user-avatar' : `${type}-avatar`;
+            const avatarText = isUser ? 'YOU' : (type === 'error' ? '❌' : type === 'success' ? '✅' : 'AI');
+
+            messageDiv.innerHTML = `
+                <div class="message-avatar ${avatarClass}">${avatarText}</div>
+                <div class="message-content">
+                    <div class="message-text">${formatMessage(content)}</div>
+                </div>
+            `;
+
+            messagesArea.appendChild(messageDiv);
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
+
+        function formatMessage(content) {
+            return content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/```([^```]+)```/g, '<pre>$1</pre>')
+                .replace(/\n/g, '<br>');
+        }
+
+        async function handleSendMessage() {
+            if (isTyping) return;
+
+            const message = messageInput.value.trim();
+            if (!message) return;
 
             // Add user message
-            addMessage('user', message);
-            input.value = '';
-            autoResizeTextarea();
+            addMessage('user', message, true);
+            messageInput.value = '';
+            adjustTextareaHeight();
+
+            // Show typing indicator
             showTyping();
 
             try {
-                if (selectedRepo && isCodeRequest(message)) {
+                if (message.toLowerCase().includes('generate') || 
+                    message.toLowerCase().includes('create') || 
+                    message.toLowerCase().includes('build')) {
                     await handleProjectGeneration(message);
                 } else {
                     await handleChatMessage(message);
                 }
             } catch (error) {
                 hideTyping();
-                addMessage('error', `❌ Error: ${error.message}`);
+                addMessage('error', `❌ **Error**: ${error.message}`);
             }
-
-            isGenerating = false;
-            updateSendButton(false);
-        }
-
-        function isCodeRequest(message) {
-            const codeKeywords = [
-                'create', 'build', 'make', 'add', 'generate', 'write',
-                'fix', 'modify', 'update', 'change', 'improve', 'enhance',
-                'develop', 'implement', 'design', 'code', 'app', 'website',
-                'feature', 'function', 'component', 'page', 'system'
-            ];
-            return codeKeywords.some(keyword => 
-                message.toLowerCase().includes(keyword)
-            );
         }
 
         async function handleProjectGeneration(instruction) {
-            showProgress(0);
+            if (!selectedRepo) {
+                hideTyping();
+                addMessage('error', '❌ **Repository Required**\n\nPlease select a GitHub repository first to generate project files.');
+                return;
+            }
 
             try {
-                // Step 1: Generate project
                 showProgress(25);
-                addMessage('system', '🎯 Creating project blueprint...');
 
                 const response = await fetch('/api/repo/generate-code', {
                     method: 'POST',
@@ -1128,7 +869,6 @@
                 showProgress(75);
 
                 if (result.success) {
-                    // Success message
                     const filesList = result.files.map(f => 
                         `  • **${f.path}** - ${f.description}`
                     ).join('\n');
@@ -1159,225 +899,99 @@
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        message, 
-                        selectedRepo,
-                        sessionId: selectedRepo ? selectedRepo.full_name : 'default'
+                    body: JSON.stringify({
+                        message: message,
+                        selectedRepo: selectedRepo
                     })
                 });
 
-                const result = await response.json();
+                const data = await response.json();
                 hideTyping();
 
-                if (result.success) {
-                    addMessage('assistant', result.response);
+                if (data.success) {
+                    addMessage('ai', data.response);
                 } else {
-                    addMessage('error', `❌ **Chat Error**\n\n${result.error}`);
+                    addMessage('error', `❌ **Error**: ${data.error}`);
                 }
             } catch (error) {
                 hideTyping();
-                addMessage('error', `❌ **Connection Error**\n\n${error.message}`);
+                addMessage('error', `❌ **Connection Error**: ${error.message}`);
             }
         }
 
-        // UI Helper Functions
-        function addMessage(type, content) {
-            const messages = document.getElementById('messages');
-            const message = document.createElement('div');
+        async function openRepoModal() {
+            repoModal.classList.add('show');
+            repoLoading.style.display = 'flex';
+            repoList.innerHTML = '';
 
-            message.className = `message ${type}`;
-            message.innerHTML = formatMessage(content);
+            try {
+                const response = await fetch('/api/github/repos');
+                const data = await response.json();
 
-            // Add timestamp for user and assistant messages
-            if (type === 'user' || type === 'assistant') {
-                const timestamp = document.createElement('div');
-                timestamp.className = 'message-timestamp';
-                timestamp.textContent = new Date().toLocaleTimeString();
-                message.appendChild(timestamp);
-            }
+                repoLoading.style.display = 'none';
 
-            // Remove typing before adding message
-            const typing = document.getElementById('typing');
-            if (typing && typing.parentNode) {
-                typing.parentNode.removeChild(typing);
-            }
+                if (data.success && data.repos.length > 0) {
+                    data.repos.forEach(repo => {
+                        const repoDiv = document.createElement('div');
+                        repoDiv.className = 'repo-item';
+                        repoDiv.innerHTML = `
+                            <div class="repo-item-header">
+                                <div class="repo-name">${repo.name}</div>
+                            </div>
+                            <div class="repo-desc">${repo.description || 'No description available'}</div>
+                            <div class="repo-meta">
+                                <div class="repo-lang">
+                                    <div class="lang-dot"></div>
+                                    ${repo.language || 'Unknown'}
+                                </div>
+                                <div>${repo.private ? 'Private' : 'Public'}</div>
+                                <div>Updated: ${new Date(repo.updated_at).toLocaleDateString()}</div>
+                            </div>
+                        `;
 
-            messages.appendChild(message);
-
-            // Re-add typing
-            if (typing) {
-                messages.appendChild(typing);
-            }
-
-            messages.scrollTop = messages.scrollHeight;
-
-            // Save to history
-            conversationHistory.push({ type, content, timestamp: Date.now() });
-            saveConversationHistory();
-        }
-
-        function formatMessage(content) {
-            return content
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/`(.*?)`/g, '<code style="background: rgba(110, 118, 129, 0.2); padding: 2px 4px; border-radius: 3px;">$1</code>')
-                .replace(/\n/g, '<br>');
-        }
-
-        function showTyping() {
-            const typing = document.getElementById('typing');
-            if (typing) {
-                typing.style.display = 'block';
-                document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
-            }
-        }
-
-        function hideTyping() {
-            const typing = document.getElementById('typing');
-            if (typing) {
-                typing.style.display = 'none';
-            }
-        }
-
-        function showProgress(percent) {
-            const bar = document.getElementById('progressBar');
-            const fill = document.getElementById('progressFill');
-
-            bar.classList.add('active');
-            fill.style.width = percent + '%';
-        }
-
-        function hideProgress() {
-            setTimeout(() => {
-                const bar = document.getElementById('progressBar');
-                bar.classList.remove('active');
-            }, 500);
-        }
-
-        function updateSendButton(loading) {
-            const btn = document.getElementById('sendBtn');
-            const voiceBtn = document.getElementById('voiceBtn');
-
-            btn.disabled = loading;
-            voiceBtn.disabled = loading;
-
-            if (loading) {
-                btn.innerHTML = '<div class="spinner"></div>';
-            } else {
-                btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
-            }
-        }
-
-        function clearWelcome() {
-            const messages = document.getElementById('messages');
-            const welcome = messages.querySelector('.welcome');
-            if (welcome) {
-                welcome.style.animation = 'fadeOut 0.3s ease-out';
-                setTimeout(() => {
-                    if (welcome.parentNode) {
-                        welcome.parentNode.removeChild(welcome);
-                    }
-                }, 300);
-            }
-        }
-
-        function clearConversation() {
-            const messages = document.getElementById('messages');
-            messages.innerHTML = `
-                <div class="typing" id="typing">
-                    <div class="typing-content">
-                        <div class="typing-avatar">AI</div>
-                        <div class="typing-dots">
-                            <div class="typing-dot"></div>
-                            <div class="typing-dot"></div>
-                            <div class="typing-dot"></div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            conversationHistory = [];
-            saveConversationHistory();
-
-            if (selectedRepo) {
-                addMessage('system', 'Conversation cleared');
-                addMessage('assistant', 'How can I help you with your project today?');
-            }
-        }
-
-        function autoResizeTextarea() {
-            const textarea = document.getElementById('messageInput');
-            textarea.style.height = 'auto';
-            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
-        }
-
-        // Voice Input (placeholder)
-        function startVoiceInput() {
-            if ('webkitSpeechRecognition' in window) {
-                const recognition = new webkitSpeechRecognition();
-                recognition.continuous = false;
-                recognition.interimResults = false;
-                recognition.lang = 'en-US';
-
-                recognition.onstart = function() {
-                    document.getElementById('voiceBtn').innerHTML = '<i class="fas fa-microphone-slash"></i>';
-                };
-
-                recognition.onresult = function(event) {
-                    const transcript = event.results[0][0].transcript;
-                    document.getElementById('messageInput').value = transcript;
-                    autoResizeTextarea();
-                };
-
-                recognition.onend = function() {
-                    document.getElementById('voiceBtn').innerHTML = '<i class="fas fa-microphone"></i>';
-                };
-
-                recognition.start();
-            } else {
-                addMessage('system', 'Voice input not supported in this browser');
-            }
-        }
-
-        // Local Storage for Conversation History
-        function saveConversationHistory() {
-            if (selectedRepo) {
-                localStorage.setItem(`conversation_${selectedRepo.full_name}`, JSON.stringify(conversationHistory));
-            }
-        }
-
-        function loadConversationHistory() {
-            if (selectedRepo) {
-                const saved = localStorage.getItem(`conversation_${selectedRepo.full_name}`);
-                if (saved) {
-                    conversationHistory = JSON.parse(saved);
-                    // Restore messages (optional - you might want to limit this)
+                        repoDiv.addEventListener('click', () => selectRepository(repo));
+                        repoList.appendChild(repoDiv);
+                    });
+                } else {
+                    repoList.innerHTML = '<div class="loading">No repositories found or GitHub token not configured.</div>';
                 }
+            } catch (error) {
+                repoLoading.style.display = 'none';
+                repoList.innerHTML = `<div class="loading">Error loading repositories: ${error.message}</div>`;
             }
         }
 
-        // Utility Functions
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            const now = new Date();
-            const diff = now - date;
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-            if (days === 0) return 'Today';
-            if (days === 1) return 'Yesterday';
-            if (days < 7) return `${days} days ago`;
-            return date.toLocaleDateString();
+        function closeRepoModal() {
+            repoModal.classList.remove('show');
         }
 
-        // Add fadeOut animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes fadeOut {
-                from { opacity: 1; }
-                to { opacity: 0; }
+        async function selectRepository(repo) {
+            try {
+                const response = await fetch('/api/repo/select', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo: repo })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    selectedRepo = data.repository;
+                    repoText.textContent = selectedRepo.name;
+                    closeRepoModal();
+
+                    addMessage('success', 
+                        `✅ **Connected to ${selectedRepo.full_name}**\n\n` +
+                        `Now I can help you work on this repository!\n` +
+                        `**Total conversations**: ${data.memory.totalConversations}`
+                    );
+                } else {
+                    addMessage('error', `❌ **Connection Failed**: ${data.error}`);
+                }
+            } catch (error) {
+                addMessage('error', `❌ **Selection Error**: ${error.message}`);
             }
-        `;
-        document.head.appendChild(style);
+        }
     </script>
 </body>
 </html>

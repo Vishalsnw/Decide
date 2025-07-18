@@ -21,7 +21,6 @@
     "@octokit/rest": "^20.0.2",
     "simple-git": "^3.20.0",
     "fs-extra": "^11.1.1",
-    "child_process": "^1.0.2",
     "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1"
   },
