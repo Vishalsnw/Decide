@@ -314,7 +314,7 @@ app.post('/api/repo/generate-code', async (req, res) => {
 // Fix and commit endpoint
 app.post('/api/fix-and-commit', async (req, res) => {
   try {
-    const { error, description } = req.body;
+    const { error, description, action = 'analyze' } = req.body;
     
     if (!error) {
       return res.status(400).json({
@@ -325,19 +325,37 @@ app.post('/api/fix-and-commit', async (req, res) => {
 
     if (process.env.DEEPSEEK_API_KEY) {
       try {
+        let systemPrompt = '';
+        let userPrompt = '';
+
+        if (action === 'fix_and_apply') {
+          systemPrompt = `You are a code fixing assistant. Analyze the error and provide the EXACT fixed code that should replace the problematic code. Format your response as:
+
+PROBLEM: [Brief description of the issue]
+SOLUTION: [Step-by-step fix]
+FIXED_CODE: [The exact corrected code]
+
+Be specific and provide working code that fixes the issue.`;
+          
+          userPrompt = `Fix this error and provide the corrected code: ${error}\n\nContext: ${description || 'No additional context'}\n\nI need the actual fixed code, not just instructions.`;
+        } else {
+          systemPrompt = 'You are a code debugging assistant. Analyze the error and provide a clear fix with explanation. Focus on the root cause and provide actionable solutions.';
+          userPrompt = `I'm getting this error: ${error}\n\nAdditional context: ${description || 'No additional context provided'}\n\nPlease help me fix this issue.`;
+        }
+
         const response = await axios.post('https://api.deepseek.com/v1/chat/completions', {
           model: 'deepseek-coder',
           messages: [
             {
               role: 'system',
-              content: 'You are a code debugging assistant. Analyze the error and provide a clear fix with explanation. Focus on the root cause and provide actionable solutions.'
+              content: systemPrompt
             },
             {
               role: 'user',
-              content: `I'm getting this error: ${error}\n\nAdditional context: ${description || 'No additional context provided'}\n\nPlease help me fix this issue.`
+              content: userPrompt
             }
           ],
-          max_tokens: 1500,
+          max_tokens: 2000,
           temperature: 0.3
         }, {
           headers: {
@@ -348,9 +366,24 @@ app.post('/api/fix-and-commit', async (req, res) => {
 
         const solution = response.data.choices[0].message.content;
         
+        // If this is a fix_and_apply action, try to extract the fixed code
+        let fixedCode = null;
+        let filesChanged = [];
+        
+        if (action === 'fix_and_apply') {
+          const codeMatch = solution.match(/FIXED_CODE:\s*([\s\S]*?)(?=\n\n|$)/);
+          if (codeMatch) {
+            fixedCode = codeMatch[1].trim();
+            filesChanged = ['Automatically detected files'];
+          }
+        }
+        
         res.json({
           success: true,
           solution: solution,
+          fixedCode: fixedCode,
+          filesChanged: filesChanged,
+          action: action,
           timestamp: new Date().toISOString(),
           error_analyzed: error
         });

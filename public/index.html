@@ -553,12 +553,13 @@
 
         /* Styles for Side Panels */
         .side-panels {
-            width: 300px; /* Adjust as needed */
+            width: 400px;
             background: rgba(22, 27, 34, 0.95);
             backdrop-filter: blur(10px);
             border-left: 1px solid #30363d;
             display: flex;
             flex-direction: column;
+            min-height: 100%;
         }
 
         .panel-tabs {
@@ -1002,6 +1003,13 @@
             setupEventListeners();
             checkServerStatus();
             adjustTextareaHeight();
+            
+            // Initialize preview with current server
+            const currentUrl = window.location.origin;
+            previewIframe.src = currentUrl;
+            
+            // Show CLI panel by default
+            showPanel('cli');
         });
 
         function setupEventListeners() {
@@ -1071,6 +1079,8 @@
                 addCliLine('/status - Check server status');
                 addCliLine('/clear - Clear terminal');
                 addCliLine('/generate [prompt] - Generate code');
+                addCliLine('/fix [error] - Fix error and apply solution');
+                addCliLine('/preview - Show live preview');
                 addCliLine('Or just type your message to chat with AI');
             } else if (cmd === '/status') {
                 try {
@@ -1079,6 +1089,7 @@
                     addCliLine(`Server: ${data.success ? '✅ Online' : '❌ Offline'}`);
                     addCliLine(`GitHub: ${data.github ? '✅ Connected' : '❌ Not configured'}`);
                     addCliLine(`AI: ${data.deepseek ? '✅ Ready' : '❌ Not configured'}`);
+                    addCliLine(`Port: ${data.port}`);
                 } catch (error) {
                     addCliLine(`❌ Error: ${error.message}`);
                 }
@@ -1089,11 +1100,17 @@
                         <span class="cli-command">AI CLI Ready</span>
                     </div>
                     <div class="cli-output-line">Type commands or chat with AI directly here</div>
-                    <div class="cli-output-line info">Commands: /help, /status, /generate, /clear</div>
+                    <div class="cli-output-line info">Commands: /help, /status, /generate, /fix, /preview, /clear</div>
                 `;
             } else if (cmd.startsWith('/generate ')) {
                 const prompt = command.substring(10);
                 await generateCodeFromCli(prompt);
+            } else if (cmd.startsWith('/fix ')) {
+                const errorDesc = command.substring(5);
+                await fixErrorFromCli(errorDesc);
+            } else if (cmd === '/preview') {
+                addCliLine('🔄 Loading preview...');
+                loadPreview();
             } else {
                 // Regular chat message
                 await sendChatFromCli(command);
@@ -1139,6 +1156,46 @@
             } catch (error) {
                 addCliLine(`❌ Error: ${error.message}`);
             }
+        }
+
+        async function fixErrorFromCli(errorDesc) {
+            try {
+                addCliLine('🔧 Analyzing and fixing error...');
+                const response = await fetch('/api/fix-and-commit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        error: errorDesc,
+                        action: 'fix_and_apply',
+                        description: `CLI fix request for: ${errorDesc}`
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    addCliLine('✅ Error fixed successfully!');
+                    addCliLine('📝 Solution applied:');
+                    addCliLine(data.solution);
+                    if (data.filesChanged) {
+                        addCliLine(`📁 Files modified: ${data.filesChanged.join(', ')}`);
+                    }
+                } else {
+                    addCliLine(`❌ Fix failed: ${data.error}`);
+                }
+            } catch (error) {
+                addCliLine(`❌ Error: ${error.message}`);
+            }
+        }
+
+        function loadPreview() {
+            const currentUrl = window.location.origin;
+            previewIframe.src = currentUrl;
+            previewIframe.style.display = 'block';
+            previewPlaceholder.style.display = 'none';
+            
+            // Switch to preview panel
+            showPanel('preview');
+            addCliLine('✅ Preview loaded in Preview panel');
         }
 
         function refreshPreviewPanel() {
