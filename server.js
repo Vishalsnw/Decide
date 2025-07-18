@@ -69,6 +69,19 @@ app.use(express.static('public'));
 // Middleware to ensure all API responses are JSON - must be before routes
 app.use('/api', (req, res, next) => {
   res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache');
+  
+  // Override res.send to ensure JSON format
+  const originalSend = res.send;
+  res.send = function(data) {
+    res.setHeader('Content-Type', 'application/json');
+    if (typeof data === 'string' && !data.startsWith('{') && !data.startsWith('[')) {
+      // If sending plain text, wrap it in JSON
+      return originalSend.call(this, JSON.stringify({ success: false, error: data }));
+    }
+    return originalSend.call(this, data);
+  };
+  
   next();
 });
 
@@ -613,11 +626,11 @@ app.post('/api/clear-conversation', async (req, res) => {
 
 // GitHub - List Repositories
 app.get('/api/github/repos', async (req, res) => {
-  // Force JSON response headers immediately
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Cache-Control', 'no-cache');
-  
   try {
+    // Force JSON response headers immediately
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-cache');
+    
     if (!process.env.GITHUB_TOKEN) {
       return res.status(400).json({ 
         success: false, 
@@ -636,7 +649,8 @@ app.get('/api/github/repos', async (req, res) => {
     
     const response = await octokit.rest.repos.listForAuthenticatedUser({
       sort: 'updated',
-      per_page: 50
+      per_page: 50,
+      timeout: 10000
     });
 
     console.log(`Found ${response.data.length} repositories`);
@@ -656,7 +670,7 @@ app.get('/api/github/repos', async (req, res) => {
   } catch (error) {
     console.error('GitHub repos error:', error);
     
-    // Force JSON headers again in case of error
+    // Ensure JSON response even on error
     res.setHeader('Content-Type', 'application/json');
     
     if (error.status === 401) {
@@ -670,6 +684,13 @@ app.get('/api/github/repos', async (req, res) => {
       return res.status(403).json({ 
         success: false, 
         error: 'GitHub API rate limit exceeded or insufficient permissions.' 
+      });
+    }
+    
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+      return res.status(408).json({ 
+        success: false, 
+        error: 'GitHub API request timeout. Please try again.' 
       });
     }
     
@@ -987,8 +1008,24 @@ const server = app.listen(PORT, '0.0.0.0', (err) => {
 server.on('error', (err) => {
   console.error('❌ Server error occurred:', err);
   if (err.code === 'EADDRINUSE') {
-    console.error(`❌ Port ${PORT} is already in use - killing existing process`);
-    process.exit(1);
+    console.error(`❌ Port ${PORT} is already in use`);
+    console.log('🔄 Attempting to kill processes and restart...');
+    
+    // Try to kill existing processes
+    const { exec } = require('child_process');
+    exec(`pkill -f "node server.js"`, (killError) => {
+      if (killError) {
+        console.log('No existing processes found to kill');
+      } else {
+        console.log('✅ Killed existing processes');
+      }
+      
+      // Retry starting server after 2 seconds
+      setTimeout(() => {
+        console.log('🔄 Retrying server startup...');
+        process.exit(1);
+      }, 2000);
+    });
   } else {
     console.error('❌ Server error:', err.message);
     process.exit(1);
