@@ -106,18 +106,66 @@
         }
 
         .refresh-btn {
-            background: #27ae60;
+            margin-left: 10px;
+            padding: 8px 15px;
+            background: #28a745;
             color: white;
             border: none;
-            padding: 10px 15px;
             border-radius: 5px;
             cursor: pointer;
-            margin-top: 10px;
             font-size: 14px;
         }
 
         .refresh-btn:hover {
             background: #229954;
+        }
+
+        .github-auth {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .github-login-btn {
+            background: #24292e;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .github-login-btn:hover {
+            background: #1b1f23;
+        }
+
+        .auth-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #28a745;
+            font-weight: 500;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .logout-btn:hover {
+            background: #c82333;
         }
 
         .progress-section {
@@ -297,6 +345,16 @@
         </div>
 
         <div class="main-content">
+            <div class="github-auth">
+                <div id="githubAuthStatus" class="auth-status">
+                    <i class="fas fa-question-circle"></i> Not Authenticated
+                </div>
+                <button id="githubLoginBtn" class="github-login-btn" onclick="loginWithGitHub()">
+                    <i class="fab fa-github"></i> Login with GitHub
+                </button>
+                <button id="githubLogoutBtn" class="logout-btn" style="display: none;" onclick="logoutFromGitHub()">Logout</button>
+            </div>
+
             <div class="input-section">
                 <h2>Create Your React Native App</h2>
                 <div class="input-group">
@@ -412,12 +470,67 @@
     <script>
         let buildInProgress = false;
         let repositories = [];
+        let githubSessionId = null;
 
-        // Load repositories on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadRepositories();
-        });
+        // GitHub Authentication Functions
+        function initializeGitHubAuth() {
+            // Check for session ID in URL or local storage
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionIdParam = urlParams.get('session_id');
 
+            if (sessionIdParam) {
+                githubSessionId = sessionIdParam;
+                localStorage.setItem('githubSessionId', sessionIdParam);
+                updateAuthStatus(true);
+            } else if (localStorage.getItem('githubSessionId')) {
+                githubSessionId = localStorage.getItem('githubSessionId');
+                updateAuthStatus(true);
+            } else {
+                updateAuthStatus(false);
+            }
+        }
+
+        function loginWithGitHub() {
+            // Redirect to GitHub OAuth URL (replace with your actual backend endpoint)
+            window.location.href = '/api/github/auth';
+        }
+
+        function logoutFromGitHub() {
+            localStorage.removeItem('githubSessionId');
+            githubSessionId = null;
+            updateAuthStatus(false);
+            // Optionally, clear repositories list or show a message
+            document.getElementById('repoList').innerHTML = '<option value="">Please login to see repositories</option>';
+            document.getElementById('repoUrlGroup').style.display = 'none';
+            document.getElementById('repoListGroup').style.display = 'none';
+            document.getElementById('repoSelection').value = 'new';
+        }
+
+        function updateAuthStatus(isAuthenticated) {
+            const authStatusDiv = document.getElementById('githubAuthStatus');
+            const loginBtn = document.getElementById('githubLoginBtn');
+            const logoutBtn = document.getElementById('githubLogoutBtn');
+
+            if (isAuthenticated) {
+                authStatusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Authenticated with GitHub';
+                authStatusDiv.className = 'auth-status'; // Reset classes
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = 'inline-block';
+            } else {
+                authStatusDiv.innerHTML = '<i class="fas fa-question-circle"></i> Not Authenticated';
+                authStatusDiv.className = 'auth-status'; // Reset classes
+                loginBtn.style.display = 'inline-block';
+                logoutBtn.style.display = 'none';
+            }
+        }
+
+        function clearGitHubAuth() {
+            localStorage.removeItem('githubSessionId');
+            githubSessionId = null;
+            updateAuthStatus(false);
+        }
+
+        // Repository Loading Functions
         function toggleRepoInput() {
             const selection = document.getElementById('repoSelection').value;
             const repoUrlGroup = document.getElementById('repoUrlGroup');
@@ -426,23 +539,29 @@
             repoUrlGroup.style.display = selection === 'existing' ? 'block' : 'none';
             repoListGroup.style.display = selection === 'list' ? 'block' : 'none';
 
-            if (selection === 'list' && repositories.length === 0) {
+            if (selection === 'list' && !githubSessionId) {
+                loadRepositories(); // This will show the login message if not authenticated
+            } else if (selection === 'list' && repositories.length === 0) {
                 loadRepositories();
             }
         }
 
         async function loadRepositories() {
-            try {
-                const repoList = document.getElementById('repoList');
-                repoList.innerHTML = '<option value="">Loading repositories...</option>';
+            if (!githubSessionId) {
+                document.getElementById('repoList').innerHTML = '<option value="">Login with GitHub to see repositories</option>';
+                return;
+            }
 
-                const response = await fetch('/api/github/repos');
+            try {
+                const response = await fetch(`/api/github/repos?session_id=${githubSessionId}`);
                 const data = await response.json();
+
+                const repoList = document.getElementById('repoList');
+                repoList.innerHTML = '';
 
                 if (data.success && data.repos.length > 0) {
                     repositories = data.repos;
                     repoList.innerHTML = '<option value="">Select a repository</option>';
-
                     data.repos.forEach(repo => {
                         const option = document.createElement('option');
                         option.value = repo.clone_url || `https://github.com/${repo.full_name}.git`;
@@ -450,6 +569,9 @@
                         option.dataset.repoName = repo.name;
                         repoList.appendChild(option);
                     });
+                } else if (!data.authenticated) {
+                    clearGitHubAuth();
+                    repoList.innerHTML = '<option value="">GitHub authentication expired - please login again</option>';
                 } else {
                     repoList.innerHTML = '<option value="">No repositories found or GitHub not connected</option>';
                 }
@@ -459,6 +581,7 @@
             }
         }
 
+        // App Creation Functions
         async function createApp() {
             if (buildInProgress) return;
 
@@ -507,12 +630,13 @@
 
                 const requestBody = {
                     domain: domain,
-                    sessionId: 'react-native-builder'
+                    sessionId: githubSessionId, // Use the authenticated session ID
+                    source: repoSelection
                 };
 
                 if (repoUrl) {
                     requestBody.repoUrl = repoUrl;
-                    requestBody.repoName = repoUrl.split('/').pop().replace('.git', '');
+                    requestBody.repoName = repoName;
                 }
 
                 if (projectName) {
@@ -564,7 +688,7 @@
                         addOutput(`🔨 Builds completed: ${data.builds.join(', ')}`);
                     }
                 } else {
-                    throw new Error(data.error);
+                    throw new Error(data.error || 'Unknown error during app creation');
                 }
             } catch (error) {
                 console.error('Error creating React Native app:', error);
@@ -584,10 +708,21 @@
             }
         }
 
+        // Progress Indicator Functions
         function resetSteps() {
             const steps = document.querySelectorAll('.progress-step');
             steps.forEach(step => {
                 step.className = 'progress-step';
+                const icon = step.querySelector('.step-icon i');
+                if (icon) {
+                    icon.className = ''; // Clear existing icon
+                    if (step.id === 'step-init') icon.classList.add('fas', 'fa-play');
+                    else if (step.id === 'step-domain') icon.classList.add('fas', 'fa-globe');
+                    else if (step.id === 'step-gradle') icon.classList.add('fas', 'fa-cogs');
+                    else if (step.id === 'step-deps') icon.classList.add('fas', 'fa-download');
+                    else if (step.id === 'step-build') icon.classList.add('fas', 'fa-hammer');
+                    else if (step.id === 'step-test') icon.classList.add('fas', 'fa-check');
+                }
             });
 
             const spinners = document.querySelectorAll('.spinner');
@@ -613,7 +748,11 @@
             const spinner = document.getElementById(`spinner-${stepName}`);
 
             step.className = 'progress-step completed';
-            step.querySelector('.step-icon').innerHTML = '<i class="fas fa-check"></i>';
+            const icon = step.querySelector('.step-icon i');
+            if (icon) {
+                icon.className = ''; // Clear existing icon
+                icon.classList.add('fas', 'fa-check');
+            }
             if (spinner) {
                 spinner.style.display = 'none';
             }
@@ -623,7 +762,11 @@
             const activeStep = document.querySelector('.progress-step.active');
             if (activeStep) {
                 activeStep.className = 'progress-step error';
-                activeStep.querySelector('.step-icon').innerHTML = '<i class="fas fa-times"></i>';
+                const icon = activeStep.querySelector('.step-icon i');
+                if (icon) {
+                    icon.className = ''; // Clear existing icon
+                    icon.classList.add('fas', 'fa-times');
+                }
                 const spinner = activeStep.querySelector('.spinner');
                 if (spinner) {
                     spinner.style.display = 'none';
@@ -643,7 +786,7 @@
                 addOutput(`🔄 ${getStepMessage(steps[i])}`);
 
                 // Simulate processing time
-                await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
+                await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 2000));
             }
 
             completeStep(steps[steps.length - 1]);
@@ -666,6 +809,17 @@
             output.textContent += `${new Date().toLocaleTimeString()} - ${message}\n`;
             output.scrollTop = output.scrollHeight;
         }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeGitHubAuth();
+
+            // Auto-load repositories if option is selected
+            const repoSelection = document.getElementById('repoSelection');
+            if (repoSelection.value === 'list') {
+                loadRepositories();
+            }
+        });
     </script>
 </body>
 </html>

@@ -211,20 +211,144 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// GitHub repos endpoint
+// GitHub OAuth endpoints
+app.get('/api/github/login', (req, res) => {
+  const clientId = process.env.GITHUB_CLIENT_ID;
+  
+  if (!clientId) {
+    return res.json({
+      success: false,
+      error: 'GitHub OAuth not configured. Please set GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET environment variables.',
+      loginUrl: null
+    });
+  }
+
+  const redirectUri = `${req.protocol}://${req.get('host')}/api/github/callback`;
+  const scope = 'repo,user:email';
+  const loginUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`;
+  
+  res.json({
+    success: true,
+    loginUrl: loginUrl,
+    message: 'GitHub OAuth login URL generated'
+  });
+});
+
+app.get('/api/github/callback', async (req, res) => {
+  const { code, state } = req.query;
+  
+  if (!code) {
+    return res.status(400).send('GitHub OAuth callback failed: No authorization code received');
+  }
+
+  try {
+    // Exchange code for access token
+    const tokenResponse = await axios.post('https://github.com/login/oauth/access_token', {
+      client_id: process.env.GITHUB_CLIENT_ID,
+      client_secret: process.env.GITHUB_CLIENT_SECRET,
+      code: code
+    }, {
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    const accessToken = tokenResponse.data.access_token;
+    
+    if (!accessToken) {
+      throw new Error('No access token received from GitHub');
+    }
+
+    // Get user info
+    const userResponse = await axios.get('https://api.github.com/user', {
+      headers: {
+        'Authorization': `token ${accessToken}`,
+        'User-Agent': 'AI-Coding-Assistant'
+      }
+    });
+
+    const user = userResponse.data;
+    
+    // Store token temporarily (in production, use secure session storage)
+    const sessionId = `github_${user.id}_${Date.now()}`;
+    
+    // Store in memory for now (implement proper session storage for production)
+    global.githubSessions = global.githubSessions || {};
+    global.githubSessions[sessionId] = {
+      accessToken: accessToken,
+      user: user,
+      expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+    };
+
+    // Redirect back to the app with session info
+    const redirectUrl = `/react-native.html?github_session=${sessionId}&github_user=${encodeURIComponent(user.login)}`;
+    res.redirect(redirectUrl);
+    
+  } catch (error) {
+    console.error('GitHub OAuth error:', error);
+    res.status(500).send(`GitHub OAuth failed: ${error.message}`);
+  }
+});
+
+// Check GitHub authentication status
+app.get('/api/github/status', (req, res) => {
+  const { session_id } = req.query;
+  
+  if (!session_id || !global.githubSessions || !global.githubSessions[session_id]) {
+    return res.json({
+      success: false,
+      authenticated: false,
+      message: 'Not authenticated with GitHub'
+    });
+  }
+
+  const session = global.githubSessions[session_id];
+  
+  if (Date.now() > session.expires) {
+    delete global.githubSessions[session_id];
+    return res.json({
+      success: false,
+      authenticated: false,
+      message: 'GitHub session expired'
+    });
+  }
+
+  res.json({
+    success: true,
+    authenticated: true,
+    user: session.user,
+    message: 'Authenticated with GitHub'
+  });
+});
+
+// GitHub repos endpoint with OAuth support
 app.get('/api/github/repos', async (req, res) => {
   try {
-    if (!octokit) {
+    const { session_id } = req.query;
+    let githubClient = octokit;
+    
+    // Check for OAuth session first
+    if (session_id && global.githubSessions && global.githubSessions[session_id]) {
+      const session = global.githubSessions[session_id];
+      if (Date.now() <= session.expires) {
+        githubClient = new Octokit({
+          auth: session.accessToken,
+        });
+      }
+    }
+    
+    if (!githubClient) {
       return res.json({
-        success: true,
+        success: false,
         repos: [],
-        message: 'GitHub integration requires GITHUB_TOKEN to be configured'
+        authenticated: false,
+        message: 'GitHub authentication required. Please login with GitHub first.'
       });
     }
 
-    const { data: repos } = await octokit.rest.repos.listForAuthenticatedUser({
+    const { data: repos } = await githubClient.rest.repos.listForAuthenticatedUser({
       sort: 'updated',
-      per_page: 20
+      per_page: 50
     });
 
     const formattedRepos = repos.map(repo => ({
@@ -246,14 +370,16 @@ app.get('/api/github/repos', async (req, res) => {
     res.json({
       success: true,
       repos: formattedRepos,
-      count: formattedRepos.length
+      count: formattedRepos.length,
+      authenticated: true
     });
   } catch (error) {
     console.error('GitHub API error:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to fetch repositories',
-      message: error.message
+      message: error.message,
+      authenticated: false
     });
   }
 });
