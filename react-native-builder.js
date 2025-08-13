@@ -16,9 +16,12 @@ class ReactNativeBuilder {
     this.isExistingRNProject = options.isExistingRNProject || false;
 
     // Initialize GitHub client with existing token
-    this.octokit = process.env.GITHUB_TOKEN ? new Octokit({
+    if (!process.env.GITHUB_TOKEN) {
+      throw new Error('GitHub token required. Please set GITHUB_TOKEN environment variable.');
+    }
+    this.octokit = new Octokit({
       auth: process.env.GITHUB_TOKEN,
-    }) : null;
+    });
 
     // Use safe directory paths - avoid /var/task
     const safeProjectName = (this.repoName || this.projectName).replace(/[^a-zA-Z0-9-_]/g, '');

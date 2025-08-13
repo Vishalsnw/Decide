@@ -13,9 +13,9 @@ const PORT = process.env.PORT || 5000;
 const MEMORY_FILE = path.join(__dirname, 'memory.json');
 
 // Initialize GitHub client with Replit's built-in access
-const octokit = process.env.REPLIT_DB_URL ? new Octokit({
-  auth: process.env.GITHUB_TOKEN || 'replit_github_access',
-}) : new Octokit();
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN,
+});
 
 // Memory management functions
 function loadMemory() {
@@ -324,25 +324,16 @@ app.get('/api/github/status', (req, res) => {
 // GitHub repos endpoint with OAuth support
 app.get('/api/github/repos', async (req, res) => {
   try {
-    const { session_id } = req.query;
-    let githubClient = octokit;
-    
-    // Check for OAuth session first
-    if (session_id && global.githubSessions && global.githubSessions[session_id]) {
-      const session = global.githubSessions[session_id];
-      if (Date.now() <= session.expires) {
-        githubClient = new Octokit({
-          auth: session.accessToken,
-        });
-      }
-    }
-    
-    // Use Replit's built-in GitHub access
-    if (!githubClient) {
-      githubClient = new Octokit(); // Replit provides GitHub access automatically
+    if (!process.env.GITHUB_TOKEN) {
+      return res.status(401).json({
+        success: false,
+        error: 'GitHub token not configured',
+        message: 'Please set GITHUB_TOKEN environment variable',
+        authenticated: false
+      });
     }
 
-    const { data: repos } = await githubClient.rest.repos.listForAuthenticatedUser({
+    const { data: repos } = await octokit.rest.repos.listForAuthenticatedUser({
       sort: 'updated',
       per_page: 50
     });
@@ -374,7 +365,7 @@ app.get('/api/github/repos', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch repositories',
-      message: error.message,
+      message: error.response?.data?.message || error.message,
       authenticated: false
     });
   }
