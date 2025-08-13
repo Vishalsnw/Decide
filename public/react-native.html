@@ -278,10 +278,20 @@
                     <label for="domain">Domain Name:</label>
                     <input type="text" id="domain" placeholder="example.com" />
                 </div>
+                <div class="input-group">
+                    <label for="repoUrl">GitHub Repository (Optional):</label>
+                    <input type="text" id="repoUrl" placeholder="https://github.com/username/repo.git" />
+                    <small>Leave empty to create a new project locally</small>
+                </div>
+                <div class="input-group">
+                    <label for="projectName">Project Name (Optional):</label>
+                    <input type="text" id="projectName" placeholder="MyAwesomeApp" />
+                    <small>Will use domain name if not specified</small>
+                </div>
                 <button class="create-btn" onclick="createApp()">
                     <i class="fas fa-rocket"></i> Create React Native App
                 </button>
-            </div>
+            </div></div>
 
             <div class="feature-grid">
                 <div class="feature-card">
@@ -363,6 +373,9 @@
             if (buildInProgress) return;
 
             const domain = document.getElementById('domain').value.trim();
+            const repoUrl = document.getElementById('repoUrl').value.trim();
+            const projectName = document.getElementById('projectName').value.trim();
+            
             if (!domain) {
                 alert('Please enter a domain name');
                 return;
@@ -385,15 +398,26 @@
                 // Start the creation process
                 startStep('init');
                 
+                const requestBody = {
+                    domain: domain,
+                    sessionId: 'react-native-builder'
+                };
+                
+                if (repoUrl) {
+                    requestBody.repoUrl = repoUrl;
+                    requestBody.repoName = repoUrl.split('/').pop().replace('.git', '');
+                }
+                
+                if (projectName) {
+                    requestBody.projectName = projectName;
+                }
+                
                 const response = await fetch('/api/create-react-native', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        domain: domain,
-                        sessionId: 'react-native-builder'
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 const data = await response.json();

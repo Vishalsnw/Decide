@@ -712,7 +712,7 @@ app.post('/api/clear-conversation', (req, res) => {
 // Create React Native app endpoint
 app.post('/api/create-react-native', async (req, res) => {
   try {
-    const { domain, sessionId = 'default' } = req.body;
+    const { domain, sessionId = 'default', repoUrl, repoName, projectName } = req.body;
 
     if (!domain) {
       return res.status(400).json({
@@ -722,9 +722,15 @@ app.post('/api/create-react-native', async (req, res) => {
     }
 
     const ReactNativeBuilder = require('./react-native-builder');
-    const builder = new ReactNativeBuilder(domain);
+    const builder = new ReactNativeBuilder(domain, projectName, {
+      repoUrl,
+      repoName
+    });
 
     console.log(`🚀 Starting React Native app creation for domain: ${domain}`);
+    if (repoUrl) {
+      console.log(`📦 Using repository: ${repoUrl}`);
+    }
 
     // Create the project
     const result = await builder.createProject();
@@ -737,6 +743,8 @@ app.post('/api/create-react-native', async (req, res) => {
       domain: domain,
       projectPath: result.projectPath,
       builds: result.builds,
+      repository: result.repository,
+      buildOutputs: result.buildOutputs,
       sessionId: sessionId
     });
     saveMemory(memory);
@@ -747,6 +755,8 @@ app.post('/api/create-react-native', async (req, res) => {
       domain: domain,
       projectPath: result.projectPath,
       builds: result.builds,
+      repository: result.repository,
+      buildOutputs: result.buildOutputs,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
