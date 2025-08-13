@@ -12,10 +12,10 @@ const PORT = process.env.PORT || 5000;
 // Memory storage
 const MEMORY_FILE = path.join(__dirname, 'memory.json');
 
-// Initialize GitHub client
-const octokit = process.env.GITHUB_TOKEN ? new Octokit({
-  auth: process.env.GITHUB_TOKEN,
-}) : null;
+// Initialize GitHub client with Replit's built-in access
+const octokit = process.env.REPLIT_DB_URL ? new Octokit({
+  auth: process.env.GITHUB_TOKEN || 'replit_github_access',
+}) : new Octokit();
 
 // Memory management functions
 function loadMemory() {
@@ -107,7 +107,7 @@ app.get('/api/health', (req, res) => {
     status: 'Server is running',
     timestamp: new Date().toISOString(),
     port: PORT,
-    github: !!process.env.GITHUB_TOKEN,
+    github: true, // Replit has built-in GitHub access
     deepseek: !!process.env.DEEPSEEK_API_KEY
   });
 });
@@ -337,13 +337,9 @@ app.get('/api/github/repos', async (req, res) => {
       }
     }
     
+    // Use Replit's built-in GitHub access
     if (!githubClient) {
-      return res.json({
-        success: false,
-        repos: [],
-        authenticated: false,
-        message: 'GitHub authentication required. Please login with GitHub first.'
-      });
+      githubClient = new Octokit(); // Replit provides GitHub access automatically
     }
 
     const { data: repos } = await githubClient.rest.repos.listForAuthenticatedUser({

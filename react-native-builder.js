@@ -14,7 +14,7 @@ class ReactNativeBuilder {
     this.useRepo = !!(this.repoUrl || this.selectedRepo);
     this.needsRNInit = options.needsRNInit === undefined ? true : options.needsRNInit;
     this.isExistingRNProject = options.isExistingRNProject || false;
-    
+
     // Initialize GitHub client with existing token
     this.octokit = process.env.GITHUB_TOKEN ? new Octokit({
       auth: process.env.GITHUB_TOKEN,
@@ -38,7 +38,7 @@ class ReactNativeBuilder {
 
     try {
       let repositoryInfo = null;
-      
+
       // Handle repository operations
       if (this.useRepo || this.octokit) {
         repositoryInfo = await this.cloneRepository();
@@ -46,17 +46,17 @@ class ReactNativeBuilder {
         // Initialize React Native if needed
         if (this.needsRNInit && !this.isExistingRNProject) {
           console.log('🚀 Initializing React Native in repository...');
-          
+
           // Check if it's already a React Native project
           const packageJsonPath = path.join(this.projectPath, 'package.json');
           let isRNProject = false;
-          
+
           if (fs.existsSync(packageJsonPath)) {
             const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-            isRNProject = packageJson.dependencies && 
+            isRNProject = packageJson.dependencies &&
               (packageJson.dependencies['react-native'] || packageJson.devDependencies && packageJson.devDependencies['react-native']);
           }
-          
+
           if (!isRNProject) {
             await this.executeCommand(`npx react-native init ${this.projectName} --directory .`, this.projectPath);
           } else {
@@ -118,13 +118,13 @@ class ReactNativeBuilder {
   async cloneRepository() {
     const repoToClone = this.selectedRepo || { clone_url: this.repoUrl, full_name: this.repoName };
     console.log(`🔗 Setting up repository: ${repoToClone?.full_name || 'creating new'}`);
-    
+
     // Ensure parent directory exists
     const parentDir = path.dirname(this.projectPath);
     if (!fs.existsSync(parentDir)) {
       fs.mkdirSync(parentDir, { recursive: true });
     }
-    
+
     if (repoToClone && (repoToClone.clone_url || this.repoUrl)) {
       // Clone existing repository
       if (!fs.existsSync(this.projectPath)) {
@@ -133,7 +133,7 @@ class ReactNativeBuilder {
       const cloneUrl = repoToClone.clone_url || this.repoUrl;
       await this.executeCommand(`git clone ${cloneUrl} .`, this.projectPath);
       console.log('✅ Repository cloned successfully.');
-      
+
       return {
         repository: repoToClone,
         repoUrl: cloneUrl
@@ -142,23 +142,23 @@ class ReactNativeBuilder {
       // Create new GitHub repository
       try {
         console.log(`📦 Creating new GitHub repository: ${this.projectName}`);
-        
+
         const { data: repo } = await this.octokit.rest.repos.createForAuthenticatedUser({
           name: this.projectName,
           description: `React Native app for ${this.domain}`,
           private: false,
           auto_init: true
         });
-        
+
         this.repoUrl = repo.clone_url;
         console.log(`✅ Created repository: ${repo.html_url}`);
-        
+
         // Clone the new repository
         if (!fs.existsSync(this.projectPath)) {
           fs.mkdirSync(this.projectPath, { recursive: true });
         }
         await this.executeCommand(`git clone ${this.repoUrl} .`, this.projectPath);
-        
+
         return {
           repository: repo,
           repoUrl: this.repoUrl
@@ -597,19 +597,19 @@ android.enableR8.fullMode=true
 
   async commitChanges() {
     console.log('📝 Committing changes to repository...');
-    
+
     try {
       // Configure git user if not already set
       await this.executeCommand('git config user.email "replit@example.com" || true', this.projectPath);
       await this.executeCommand('git config user.name "Replit AI Assistant" || true', this.projectPath);
-      
+
       // Add all files
       await this.executeCommand('git add .', this.projectPath);
-      
+
       // Commit changes
       const commitMessage = `Add React Native app for ${this.domain}`;
       await this.executeCommand(`git commit -m "${commitMessage}" || true`, this.projectPath);
-      
+
       // Push to remote if repository exists
       if (this.repoUrl) {
         await this.executeCommand('git push origin main || git push origin master || true', this.projectPath);

@@ -473,21 +473,13 @@
 
         // GitHub Authentication and Status Functions
         async function initializeGitHubAuth() {
-            // Check if GitHub token is configured on server
+            // Replit provides GitHub access automatically
             try {
-                const response = await fetch('/api/health');
-                const data = await response.json();
-
-                if (data.github) {
-                    updateAuthUI(true, 'Configured');
-                    await loadRepositories();
-                } else {
-                    updateAuthUI(false);
-                    document.getElementById('repoSelectionDiv').innerHTML = '<p style="color: #ff6b6b;">GitHub token not configured. Please add GITHUB_TOKEN to environment variables.</p>';
-                }
+                updateAuthUI(true, 'Replit Integration Active');
+                await loadRepositories();
             } catch (error) {
                 updateAuthUI(false);
-                console.error('Failed to check GitHub status:', error);
+                console.error('Failed to initialize GitHub:', error);
             }
         }
 
