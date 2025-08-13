@@ -919,6 +919,55 @@
                 opacity: 1;
             }
         }
+
+        /* Features Section */
+        .features-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 40px 0;
+            justify-content: center;
+        }
+
+        .feature-card {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            width: 250px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 180px;
+        }
+
+        .feature-card:hover {
+            border-color: #58a6ff;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(88, 166, 255, 0.2);
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .feature-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #58a6ff;
+            margin-bottom: 8px;
+        }
+
+        .feature-desc {
+            font-size: 14px;
+            color: #7d8590;
+            line-height: 1.5;
+        }
     </style>
 </head>
 <body>
@@ -980,13 +1029,17 @@
                                 • **📂 GitHub Integration** - Work directly with your repositories
                                 • **💾 Auto-Commit** - Changes are applied automatically without manual intervention
 
-                                **💡 Just say things like:**
+                                <strong>🚀 New Feature: React Native App Builder!</strong>
+                                You can now create complete React Native apps with custom domains, automatic Gradle setup, and build APK/AAB files. Just tell me your idea, for example: "Create a React Native app for my domain mydomain.com".
+
+                                <strong>💡 Just say things like:</strong>
                                 • "Create a todo app with dark mode"
                                 • "Build a weather dashboard"
                                 • "Make a chat application"
+                                • "Create a React Native app for mydomain.com"
                                 • Or paste any error to get it fixed instantly!
 
-                                Start by describing your web app idea or paste an error to fix!
+                                Start by describing your web app idea, React Native app idea, or paste an error to fix!
                             </div>
                         </div>
                     </div>
@@ -1028,7 +1081,20 @@
             </div>
         </div>
 
-        
+        <!-- Features Section -->
+        <div class="features-section">
+            <div class="feature-card" onclick="window.open('/cli.html', '_blank')">
+                <div class="feature-icon">🖥️</div>
+                <div class="feature-title">CLI Interface</div>
+                <div class="feature-desc">Command-line interface for developers</div>
+            </div>
+            <div class="feature-card" onclick="window.open('/react-native.html', '_blank')">
+                <div class="feature-icon">📱</div>
+                <div class="feature-title">React Native Builder</div>
+                <div class="feature-desc">Create complete React Native apps with domain integration and APK/AAB builds</div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Repository Modal -->
@@ -1407,9 +1473,12 @@
             // Check message type for smart routing
             const errorKeywords = ['error', 'bug', 'issue', 'problem', 'broken', 'not working', 'fail', 'crash', 'exception', 'fix'];
             const webappKeywords = ['create app', 'build app', 'make app', 'web app', 'website', 'create website', 'build website', 'app idea'];
-            
+            const reactNativeKeywords = ['react native', 'rn app', 'create react native app', 'build react native app', 'android app', 'apk', 'aab'];
+
             const containsError = errorKeywords.some(keyword => message.toLowerCase().includes(keyword));
             const isWebAppRequest = webappKeywords.some(keyword => message.toLowerCase().includes(keyword));
+            const isReactNativeRequest = reactNativeKeywords.some(keyword => message.toLowerCase().includes(keyword));
+
 
             // Show typing indicator
             showTyping();
@@ -1417,7 +1486,42 @@
             try {
                 let response, data;
 
-                if (isWebAppRequest && !containsError) {
+                if (isReactNativeRequest && !containsError) {
+                    // React Native app creation mode
+                    showAutoFixIndicator();
+                    const indicator = document.getElementById('autoFixIndicator');
+                    indicator.innerHTML = '<i class="fas fa-cog fa-spin"></i> Creating React Native app...';
+
+                    response = await fetch('/api/create-react-native-app', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            idea: message,
+                            description: `User request for React Native app: ${message}`,
+                            sessionId: sessionId
+                        })
+                    });
+
+                    data = await response.json();
+                    hideAutoFixIndicator();
+
+                    if (data.success) {
+                        addMessage(data.solution, 'ai');
+
+                        if (data.created && data.filesCreated.length > 0) {
+                            showFixNotification();
+                            const notification = document.getElementById('fixNotification');
+                            notification.innerHTML = '<i class="fas fa-check"></i> React Native app created successfully!';
+
+                            addMessage(`🎉 React Native app created successfully!\n\nFiles created:\n${data.filesCreated.map(f => `• ${f}`).join('\n')}\n\nYour app is ready! You can now build and test it.`, 'success');
+                        }
+                    } else {
+                        addMessage(`❌ React Native app creation failed: ${data.error}`, 'error');
+                    }
+                }
+                else if (isWebAppRequest && !containsError) {
                     // Web app creation mode
                     showAutoFixIndicator();
                     const indicator = document.getElementById('autoFixIndicator');
@@ -1445,7 +1549,7 @@
                             showFixNotification();
                             const notification = document.getElementById('fixNotification');
                             notification.innerHTML = '<i class="fas fa-check"></i> Web app created successfully!';
-                            
+
                             addMessage(`🎉 Web app created successfully!\n\nFiles created:\n${data.filesCreated.map(f => `• ${f}`).join('\n')}\n\nYour app is ready! Click the Run button to start it.`, 'success');
                         }
                     } else {
@@ -1604,9 +1708,9 @@
                         'Content-Type': 'application/json'
                     }
                 });
-                
+
                 showProgress(60);
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     showProgress(100);

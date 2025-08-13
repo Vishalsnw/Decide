@@ -709,6 +709,55 @@ app.post('/api/clear-conversation', (req, res) => {
   }
 });
 
+// Create React Native app endpoint
+app.post('/api/create-react-native', async (req, res) => {
+  try {
+    const { domain, sessionId = 'default' } = req.body;
+
+    if (!domain) {
+      return res.status(400).json({
+        success: false,
+        error: 'Domain is required'
+      });
+    }
+
+    const ReactNativeBuilder = require('./react-native-builder');
+    const builder = new ReactNativeBuilder(domain);
+
+    console.log(`🚀 Starting React Native app creation for domain: ${domain}`);
+
+    // Create the project
+    const result = await builder.createProject();
+
+    // Save to memory
+    const memory = loadMemory();
+    memory.codeHistory.push({
+      timestamp: new Date().toISOString(),
+      type: 'react_native_creation',
+      domain: domain,
+      projectPath: result.projectPath,
+      builds: result.builds,
+      sessionId: sessionId
+    });
+    saveMemory(memory);
+
+    res.json({
+      success: true,
+      message: `React Native app created successfully for ${domain}`,
+      domain: domain,
+      projectPath: result.projectPath,
+      builds: result.builds,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('React Native creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'React Native app creation failed'
+    });
+  }
+});
+
 // Create webapp endpoint for automatic app generation
 app.post('/api/create-webapp', async (req, res) => {
   try {
