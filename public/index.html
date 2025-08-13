@@ -1088,7 +1088,7 @@
                 <div class="feature-title">CLI Interface</div>
                 <div class="feature-desc">Command-line interface for developers</div>
             </div>
-            <div class="feature-card" onclick="window.open('/react-native.html', '_blank')">
+            <div class="feature-card" onclick="openReactNativeBuilder()">
                 <div class="feature-icon">📱</div>
                 <div class="feature-title">React Native Builder</div>
                 <div class="feature-desc">Create complete React Native apps with domain integration and APK/AAB builds</div>
@@ -1112,6 +1112,78 @@
                     Loading repositories...
                 </div>
                 <div class="repo-list" id="repoList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- React Native Builder Modal -->
+    <div class="modal-overlay" id="rnBuilderModal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 class="modal-title"><i class="fab fa-react"></i> React Native App Builder</h3>
+                <button class="modal-close" id="rnModalClose">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="rn-builder-content">
+                    <div class="input-group">
+                        <label for="rnDomain">Domain Name:</label>
+                        <input type="text" id="rnDomain" placeholder="example.com" />
+                    </div>
+
+                    <div class="input-group">
+                        <label for="rnProjectName">Project Name (Optional):</label>
+                        <input type="text" id="rnProjectName" placeholder="MyAwesomeApp" />
+                        <small>Will use domain name if not specified</small>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="rnRepoOption">Repository Option:</label>
+                        <select id="rnRepoOption" onchange="toggleRnRepoInput()">
+                            <option value="current">Use currently selected repository</option>
+                            <option value="new">Create new local project</option>
+                            <option value="select">Select different repository</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="rnRepoSelectGroup" style="display: none;">
+                        <label for="rnRepoSelect">Select Repository:</label>
+                        <select id="rnRepoSelect">
+                            <option value="">Loading repositories...</option>
+                        </select>
+                        <button type="button" class="refresh-btn" onclick="loadRnRepositories()" style="margin-left: 10px; padding: 8px 12px; background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #c9d1d9; cursor: pointer;">
+                            <i class="fas fa-refresh"></i>
+                        </button>
+                    </div>
+
+                    <div class="progress-section" id="rnProgressSection" style="display: none;">
+                        <h4>Building Your React Native App...</h4>
+                        <div class="progress-bar-container" style="background: #21262d; border-radius: 6px; overflow: hidden; margin: 10px 0;">
+                            <div id="rnProgressBar" style="background: linear-gradient(90deg, #58a6ff, #1f6feb); height: 6px; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                        <div id="rnProgressText" style="font-size: 14px; color: #7d8590;"></div>
+                        <div id="rnBuildOutput" style="background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 12px; margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; white-space: pre-wrap;"></div>
+                    </div>
+
+                    <div class="success-section" id="rnSuccessSection" style="display: none;">
+                        <div style="color: #56d364; margin-bottom: 15px;">
+                            <i class="fas fa-check-circle"></i> React Native app created successfully!
+                        </div>
+                        <div id="rnSuccessDetails" style="font-size: 14px; color: #c9d1d9;"></div>
+                    </div>
+
+                    <div class="error-section" id="rnErrorSection" style="display: none;">
+                        <div style="color: #f85149; margin-bottom: 15px;">
+                            <i class="fas fa-exclamation-triangle"></i> Build failed
+                        </div>
+                        <div id="rnErrorDetails" style="font-size: 14px; color: #f85149;"></div>
+                    </div>
+
+                    <button class="rn-create-btn" onclick="createReactNativeApp()" style="width: 100%; background: linear-gradient(135deg, #238636, #2ea043); color: white; border: none; border-radius: 8px; padding: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 15px;">
+                        <i class="fas fa-rocket"></i> Create React Native App
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1806,6 +1878,180 @@
                 addMessage(`Failed to select repository: ${error.message}`, 'error');
             }
         }
+
+        function closeRepoModal() {
+            repoModal.classList.remove('show');
+        }
+
+        // React Native Builder functions
+        function openReactNativeBuilder() {
+            const rnModal = document.getElementById('rnBuilderModal');
+            rnModal.classList.add('show');
+            
+            // Load repositories for selection if needed
+            loadRnRepositories();
+            
+            // Set current repo info
+            const currentRepo = selectedRepo ? selectedRepo.name : 'None selected';
+            document.getElementById('rnRepoOption').value = selectedRepo ? 'current' : 'new';
+            toggleRnRepoInput();
+        }
+
+        function closeRnModal() {
+            document.getElementById('rnBuilderModal').classList.remove('show');
+            // Reset form
+            document.getElementById('rnDomain').value = '';
+            document.getElementById('rnProjectName').value = '';
+            document.getElementById('rnProgressSection').style.display = 'none';
+            document.getElementById('rnSuccessSection').style.display = 'none';
+            document.getElementById('rnErrorSection').style.display = 'none';
+        }
+
+        function toggleRnRepoInput() {
+            const option = document.getElementById('rnRepoOption').value;
+            const selectGroup = document.getElementById('rnRepoSelectGroup');
+            
+            if (option === 'select') {
+                selectGroup.style.display = 'block';
+                loadRnRepositories();
+            } else {
+                selectGroup.style.display = 'none';
+            }
+        }
+
+        async function loadRnRepositories() {
+            const select = document.getElementById('rnRepoSelect');
+            select.innerHTML = '<option value="">Loading repositories...</option>';
+
+            try {
+                const response = await fetch('/api/github/repos');
+                const data = await response.json();
+
+                if (data.success && data.repos.length > 0) {
+                    select.innerHTML = '<option value="">Select a repository...</option>';
+                    data.repos.forEach(repo => {
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify(repo);
+                        option.textContent = repo.full_name;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">No repositories found</option>';
+                }
+            } catch (error) {
+                select.innerHTML = '<option value="">Failed to load repositories</option>';
+                console.error('Failed to load repositories:', error);
+            }
+        }
+
+        async function createReactNativeApp() {
+            const domain = document.getElementById('rnDomain').value.trim();
+            if (!domain) {
+                alert('Please enter a domain name');
+                return;
+            }
+
+            const projectName = document.getElementById('rnProjectName').value.trim();
+            const repoOption = document.getElementById('rnRepoOption').value;
+
+            let requestData = {
+                domain: domain,
+                projectName: projectName || null,
+                sessionId: sessionId
+            };
+
+            // Handle repository selection
+            if (repoOption === 'current' && selectedRepo) {
+                requestData.selectedRepo = selectedRepo;
+            } else if (repoOption === 'select') {
+                const repoSelectValue = document.getElementById('rnRepoSelect').value;
+                if (repoSelectValue) {
+                    try {
+                        requestData.selectedRepo = JSON.parse(repoSelectValue);
+                    } catch (e) {
+                        alert('Invalid repository selection');
+                        return;
+                    }
+                }
+            }
+
+            // Disable button and show progress
+            const createBtn = document.querySelector('.rn-create-btn');
+            createBtn.disabled = true;
+            createBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating App...';
+
+            document.getElementById('rnProgressSection').style.display = 'block';
+            document.getElementById('rnSuccessSection').style.display = 'none';
+            document.getElementById('rnErrorSection').style.display = 'none';
+
+            const progressBar = document.getElementById('rnProgressBar');
+            const progressText = document.getElementById('rnProgressText');
+            const buildOutput = document.getElementById('rnBuildOutput');
+
+            // Simulate progress
+            progressText.textContent = 'Initializing React Native project...';
+            progressBar.style.width = '10%';
+            buildOutput.textContent = 'Starting React Native app creation...\n';
+
+            try {
+                const response = await fetch('/api/create-react-native-app', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                progressBar.style.width = '50%';
+                progressText.textContent = 'Building APK and AAB files...';
+                buildOutput.textContent += 'Processing domain integration...\nSetting up Gradle...\nBuilding outputs...\n';
+
+                const data = await response.json();
+
+                progressBar.style.width = '100%';
+
+                if (data.success) {
+                    progressText.textContent = 'Build completed successfully!';
+                    buildOutput.textContent += `✅ React Native app created for ${domain}\n`;
+                    
+                    document.getElementById('rnSuccessSection').style.display = 'block';
+                    document.getElementById('rnSuccessDetails').innerHTML = `
+                        <strong>Domain:</strong> ${data.domain || domain}<br>
+                        <strong>Project Path:</strong> ${data.projectPath || 'Local project'}<br>
+                        <strong>Builds:</strong> ${data.builds ? data.builds.length + ' files created' : 'Created successfully'}<br>
+                        <strong>Repository:</strong> ${data.repository ? data.repository.html_url || 'Integrated' : 'Local development'}
+                    `;
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+            } catch (error) {
+                progressBar.style.width = '100%';
+                progressBar.style.background = '#f85149';
+                progressText.textContent = 'Build failed';
+                buildOutput.textContent += `❌ Error: ${error.message}\n`;
+                
+                document.getElementById('rnErrorSection').style.display = 'block';
+                document.getElementById('rnErrorDetails').textContent = error.message;
+            } finally {
+                createBtn.disabled = false;
+                createBtn.innerHTML = '<i class="fas fa-rocket"></i> Create React Native App';
+            }
+        }
+
+        // Add event listeners for React Native modal
+        document.addEventListener('DOMContentLoaded', () => {
+            const rnModalClose = document.getElementById('rnModalClose');
+            if (rnModalClose) {
+                rnModalClose.addEventListener('click', closeRnModal);
+            }
+
+            const rnModal = document.getElementById('rnBuilderModal');
+            if (rnModal) {
+                rnModal.addEventListener('click', (e) => {
+                    if (e.target === rnModal) closeRnModal();
+                });
+            }
+        });
 
         function closeRepoModal() {
             repoModal.classList.remove('show');

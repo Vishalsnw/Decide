@@ -836,7 +836,7 @@ app.post('/api/clear-conversation', (req, res) => {
 });
 
 // Create React Native app endpoint
-app.post('/api/create-react-native', async (req, res) => {
+app.post('/api/create-react-native-app', async (req, res) => {
   try {
     const { domain, sessionId = 'default', repoUrl, repoName, projectName, createRepo = false, selectedRepo } = req.body;
 
