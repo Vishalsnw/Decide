@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,7 +67,8 @@
             color: #333;
         }
 
-        input[type="text"] {
+        input[type="text"],
+        select {
             width: 100%;
             padding: 15px;
             border: 2px solid #e1e8ed;
@@ -77,7 +77,8 @@
             transition: border-color 0.3s;
         }
 
-        input[type="text"]:focus {
+        input[type="text"]:focus,
+        select:focus {
             outline: none;
             border-color: #3498db;
         }
@@ -102,21 +103,6 @@
             background: #bdc3c7;
             transform: none;
             cursor: not-allowed;
-        }
-
-        select {
-            width: 100%;
-            padding: 15px;
-            border: 2px solid #e1e8ed;
-            border-radius: 8px;
-            font-size: 16px;
-            background: white;
-            transition: border-color 0.3s;
-        }
-
-        select:focus {
-            outline: none;
-            border-color: #3498db;
         }
 
         .refresh-btn {
@@ -292,6 +278,15 @@
             color: #666;
             line-height: 1.6;
         }
+
+        .radio-group label {
+            display: inline-block;
+            margin-right: 20px;
+            font-weight: normal;
+        }
+        .radio-group input[type="radio"] {
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -316,12 +311,12 @@
                         <option value="list">Select from your repositories</option>
                     </select>
                 </div>
-                
+
                 <div class="input-group" id="repoUrlGroup" style="display: none;">
                     <label for="repoUrl">GitHub Repository URL:</label>
                     <input type="text" id="repoUrl" placeholder="https://github.com/username/repo.git" />
                 </div>
-                
+
                 <div class="input-group" id="repoListGroup" style="display: none;">
                     <label for="repoList">Select Repository:</label>
                     <select id="repoList">
@@ -427,10 +422,10 @@
             const selection = document.getElementById('repoSelection').value;
             const repoUrlGroup = document.getElementById('repoUrlGroup');
             const repoListGroup = document.getElementById('repoListGroup');
-            
+
             repoUrlGroup.style.display = selection === 'existing' ? 'block' : 'none';
             repoListGroup.style.display = selection === 'list' ? 'block' : 'none';
-            
+
             if (selection === 'list' && repositories.length === 0) {
                 loadRepositories();
             }
@@ -440,14 +435,14 @@
             try {
                 const repoList = document.getElementById('repoList');
                 repoList.innerHTML = '<option value="">Loading repositories...</option>';
-                
+
                 const response = await fetch('/api/github/repos');
                 const data = await response.json();
-                
+
                 if (data.success && data.repos.length > 0) {
                     repositories = data.repos;
                     repoList.innerHTML = '<option value="">Select a repository</option>';
-                    
+
                     data.repos.forEach(repo => {
                         const option = document.createElement('option');
                         option.value = repo.clone_url || `https://github.com/${repo.full_name}.git`;
@@ -470,7 +465,7 @@
             const domain = document.getElementById('domain').value.trim();
             const repoSelection = document.getElementById('repoSelection').value;
             const projectName = document.getElementById('projectName').value.trim();
-            
+
             if (!domain) {
                 alert('Please enter a domain name');
                 return;
@@ -509,21 +504,21 @@
             try {
                 // Start the creation process
                 startStep('init');
-                
+
                 const requestBody = {
                     domain: domain,
                     sessionId: 'react-native-builder'
                 };
-                
+
                 if (repoUrl) {
                     requestBody.repoUrl = repoUrl;
                     requestBody.repoName = repoUrl.split('/').pop().replace('.git', '');
                 }
-                
+
                 if (projectName) {
                     requestBody.projectName = projectName;
                 }
-                
+
                 const response = await fetch('/api/create-react-native', {
                     method: 'POST',
                     headers: {
@@ -537,10 +532,10 @@
                 if (data.success) {
                     // Simulate progress steps
                     await simulateSteps();
-                    
+
                     // Show success
                     document.getElementById('successSection').style.display = 'block';
-                    
+
                     // Display build information
                     const buildInfo = document.getElementById('buildInfo');
                     buildInfo.innerHTML = `
@@ -573,14 +568,14 @@
                 }
             } catch (error) {
                 console.error('Error creating React Native app:', error);
-                
+
                 // Show error section
                 document.getElementById('errorSection').style.display = 'block';
                 document.getElementById('errorMessage').textContent = error.message;
-                
+
                 // Mark current step as error
                 markStepError();
-                
+
                 addOutput(`❌ Error: ${error.message}`);
             } finally {
                 buildInProgress = false;
@@ -594,7 +589,7 @@
             steps.forEach(step => {
                 step.className = 'progress-step';
             });
-            
+
             const spinners = document.querySelectorAll('.spinner');
             spinners.forEach(spinner => {
                 spinner.style.display = 'none';
@@ -606,7 +601,7 @@
         function startStep(stepName) {
             const step = document.getElementById(`step-${stepName}`);
             const spinner = document.getElementById(`spinner-${stepName}`);
-            
+
             step.className = 'progress-step active';
             if (spinner) {
                 spinner.style.display = 'block';
@@ -616,7 +611,7 @@
         function completeStep(stepName) {
             const step = document.getElementById(`step-${stepName}`);
             const spinner = document.getElementById(`spinner-${stepName}`);
-            
+
             step.className = 'progress-step completed';
             step.querySelector('.step-icon').innerHTML = '<i class="fas fa-check"></i>';
             if (spinner) {
@@ -638,19 +633,19 @@
 
         async function simulateSteps() {
             const steps = ['init', 'domain', 'gradle', 'deps', 'build', 'test'];
-            
+
             for (let i = 0; i < steps.length; i++) {
                 if (i > 0) {
                     completeStep(steps[i - 1]);
                 }
-                
+
                 startStep(steps[i]);
                 addOutput(`🔄 ${getStepMessage(steps[i])}`);
-                
+
                 // Simulate processing time
                 await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
             }
-            
+
             completeStep(steps[steps.length - 1]);
         }
 

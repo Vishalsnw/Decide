@@ -716,12 +716,20 @@ app.post('/api/clear-conversation', (req, res) => {
 // Create React Native app endpoint
 app.post('/api/create-react-native', async (req, res) => {
   try {
-    const { domain, sessionId = 'default', repoUrl, repoName, projectName } = req.body;
+    const { domain, sessionId = 'default', repoUrl, repoName, projectName, createRepo = false } = req.body;
 
     if (!domain) {
       return res.status(400).json({
         success: false,
         error: 'Domain is required'
+      });
+    }
+
+    // Check GitHub token for repository operations
+    if ((repoUrl || createRepo) && !process.env.GITHUB_TOKEN) {
+      return res.status(400).json({
+        success: false,
+        error: 'GitHub token required for repository operations. Please configure GITHUB_TOKEN environment variable.'
       });
     }
 
@@ -734,6 +742,8 @@ app.post('/api/create-react-native', async (req, res) => {
     console.log(`🚀 Starting React Native app creation for domain: ${domain}`);
     if (repoUrl) {
       console.log(`📦 Using repository: ${repoUrl}`);
+    } else if (createRepo) {
+      console.log(`📦 Creating new GitHub repository`);
     }
 
     // Create the project
@@ -746,10 +756,11 @@ app.post('/api/create-react-native', async (req, res) => {
       type: 'react_native_creation',
       domain: domain,
       projectPath: result.projectPath,
-      builds: result.builds,
+      builds: result.builds || [],
       repository: result.repository,
-      buildOutputs: result.buildOutputs,
-      sessionId: sessionId
+      buildOutputs: result.buildOutputs || [],
+      sessionId: sessionId,
+      githubIntegrated: !!(repoUrl || result.repository)
     });
     saveMemory(memory);
 
@@ -758,16 +769,18 @@ app.post('/api/create-react-native', async (req, res) => {
       message: `React Native app created successfully for ${domain}`,
       domain: domain,
       projectPath: result.projectPath,
-      builds: result.builds,
+      builds: result.builds || [],
       repository: result.repository,
-      buildOutputs: result.buildOutputs,
+      buildOutputs: result.buildOutputs || [],
+      githubIntegrated: !!(repoUrl || result.repository),
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('React Native creation error:', error);
     res.status(500).json({
       success: false,
-      error: error.message || 'React Native app creation failed'
+      error: error.message || 'React Native app creation failed',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
