@@ -25,10 +25,11 @@ class ReactNativeBuilder {
 
     // Use safe directory paths - avoid /var/task
     const safeProjectName = (this.repoName || this.projectName).replace(/[^a-zA-Z0-9-_]/g, '');
+    const baseDir = process.env.REPL_HOME || process.cwd();
     if (this.useRepo) {
-      this.projectPath = path.join(process.cwd(), 'repos', safeProjectName);
+      this.projectPath = path.join(baseDir, 'temp_repos', safeProjectName);
     } else {
-      this.projectPath = path.join(process.cwd(), 'projects', safeProjectName);
+      this.projectPath = path.join(baseDir, 'temp_projects', safeProjectName);
     }
 
     this.buildAttempts = 0;
@@ -69,11 +70,18 @@ class ReactNativeBuilder {
       } else {
         // Create new local project
         const parentDir = path.dirname(this.projectPath);
-        if (!fs.existsSync(parentDir)) {
-          fs.mkdirSync(parentDir, { recursive: true });
+        try {
+          if (!fs.existsSync(parentDir)) {
+            fs.mkdirSync(parentDir, { recursive: true });
+          }
+        } catch (error) {
+          console.error('Directory creation error:', error);
+          // Use current directory as fallback
+          this.projectPath = path.join(process.cwd(), this.projectName);
+          console.log(`Using fallback path: ${this.projectPath}`);
         }
         console.log('🚀 Creating new React Native project...');
-        await this.executeCommand('npx react-native init ' + this.projectName, parentDir);
+        await this.executeCommand('npx react-native init ' + this.projectName, path.dirname(this.projectPath));
       }
 
       // Configure domain integration
@@ -122,10 +130,17 @@ class ReactNativeBuilder {
     const repoToClone = this.selectedRepo || { clone_url: this.repoUrl, full_name: this.repoName };
     console.log(`🔗 Setting up repository: ${repoToClone?.full_name || 'creating new'}`);
 
-    // Ensure parent directory exists
+    // Ensure parent directory exists with proper error handling
     const parentDir = path.dirname(this.projectPath);
-    if (!fs.existsSync(parentDir)) {
-      fs.mkdirSync(parentDir, { recursive: true });
+    try {
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
+    } catch (error) {
+      console.error('Directory creation error:', error);
+      // Fallback to current directory
+      this.projectPath = path.join(process.cwd(), `rn_${Date.now()}_${this.projectName}`);
+      console.log(`Using fallback path: ${this.projectPath}`);
     }
 
     if (repoToClone && (repoToClone.clone_url || this.repoUrl)) {
