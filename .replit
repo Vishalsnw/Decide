@@ -1,10 +1,10 @@
-run = "npm run build "
-modules = ["nodejs-20"]
+run = "npm run dev"
+modules = ["web", "nodejs-20"]
 [nix]
-channel = "stable-24_05"
+channel = "stable-25_05"
 
 [deployment]
-run = ["sh", "-c", "npm run build "]
+run = ["sh", "-c", "npm run dev"]
 
 [workflows]
 runButton = "Start AI Coding Assistant"
