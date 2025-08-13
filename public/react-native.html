@@ -349,10 +349,32 @@
                 <div id="githubAuthStatus" class="auth-status">
                     <i class="fas fa-question-circle"></i> Not Authenticated
                 </div>
-                <button id="githubLoginBtn" class="github-login-btn" onclick="loginWithGitHub()">
-                    <i class="fab fa-github"></i> Login with GitHub
-                </button>
-                <button id="githubLogoutBtn" class="logout-btn" style="display: none;" onclick="logoutFromGitHub()">Logout</button>
+                
+                <div id="repoSelectionDiv">
+                    <div class="input-group">
+                        <label for="repoSelection">Repository Source:</label>
+                        <select id="repoSelection" onchange="toggleRepoInput()">
+                            <option value="new">Create new project locally</option>
+                            <option value="existing">Connect to existing repository</option>
+                            <option value="list">Select from your repositories</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group" id="repoUrlGroup" style="display: none;">
+                        <label for="repoUrl">GitHub Repository URL:</label>
+                        <input type="text" id="repoUrl" placeholder="https://github.com/username/repo.git" />
+                    </div>
+
+                    <div class="input-group" id="repoListGroup" style="display: none;">
+                        <label for="repoList">Select Repository:</label>
+                        <select id="repoList">
+                            <option value="">Loading repositories...</option>
+                        </select>
+                        <button type="button" class="refresh-btn" onclick="loadRepositories()">
+                            <i class="fas fa-refresh"></i> Refresh
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="input-section">
@@ -361,29 +383,7 @@
                     <label for="domain">Domain Name:</label>
                     <input type="text" id="domain" placeholder="example.com" />
                 </div>
-                <div class="input-group">
-                    <label for="repoSelection">Repository Source:</label>
-                    <select id="repoSelection" onchange="toggleRepoInput()">
-                        <option value="new">Create new project locally</option>
-                        <option value="existing">Connect to existing repository</option>
-                        <option value="list">Select from your repositories</option>
-                    </select>
-                </div>
 
-                <div class="input-group" id="repoUrlGroup" style="display: none;">
-                    <label for="repoUrl">GitHub Repository URL:</label>
-                    <input type="text" id="repoUrl" placeholder="https://github.com/username/repo.git" />
-                </div>
-
-                <div class="input-group" id="repoListGroup" style="display: none;">
-                    <label for="repoList">Select Repository:</label>
-                    <select id="repoList">
-                        <option value="">Loading repositories...</option>
-                    </select>
-                    <button type="button" class="refresh-btn" onclick="loadRepositories()">
-                        <i class="fas fa-refresh"></i> Refresh
-                    </button>
-                </div>
                 <div class="input-group">
                     <label for="projectName">Project Name (Optional):</label>
                     <input type="text" id="projectName" placeholder="MyAwesomeApp" />
@@ -469,68 +469,87 @@
 
     <script>
         let buildInProgress = false;
-        let repositories = [];
-        let githubSessionId = null;
+        let availableRepos = []; // Renamed from 'repositories' for clarity
 
-        // GitHub Authentication Functions
-        function initializeGitHubAuth() {
-            // Check for session ID in URL or local storage
-            const urlParams = new URLSearchParams(window.location.search);
-            const sessionIdParam = urlParams.get('session_id');
+        // GitHub Authentication and Status Functions
+        async function initializeGitHubAuth() {
+            // Check if GitHub token is configured on server
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
 
-            if (sessionIdParam) {
-                githubSessionId = sessionIdParam;
-                localStorage.setItem('githubSessionId', sessionIdParam);
-                updateAuthStatus(true);
-            } else if (localStorage.getItem('githubSessionId')) {
-                githubSessionId = localStorage.getItem('githubSessionId');
-                updateAuthStatus(true);
-            } else {
-                updateAuthStatus(false);
+                if (data.github) {
+                    updateAuthUI(true, 'Configured');
+                    await loadRepositories();
+                } else {
+                    updateAuthUI(false);
+                    document.getElementById('repoSelectionDiv').innerHTML = '<p style="color: #ff6b6b;">GitHub token not configured. Please add GITHUB_TOKEN to environment variables.</p>';
+                }
+            } catch (error) {
+                updateAuthUI(false);
+                console.error('Failed to check GitHub status:', error);
             }
         }
 
-        function loginWithGitHub() {
-            // Redirect to GitHub OAuth URL (replace with your actual backend endpoint)
-            window.location.href = '/api/github/auth';
-        }
-
-        function logoutFromGitHub() {
-            localStorage.removeItem('githubSessionId');
-            githubSessionId = null;
-            updateAuthStatus(false);
-            // Optionally, clear repositories list or show a message
-            document.getElementById('repoList').innerHTML = '<option value="">Please login to see repositories</option>';
-            document.getElementById('repoUrlGroup').style.display = 'none';
-            document.getElementById('repoListGroup').style.display = 'none';
-            document.getElementById('repoSelection').value = 'new';
-        }
-
-        function updateAuthStatus(isAuthenticated) {
-            const authStatusDiv = document.getElementById('githubAuthStatus');
+        function updateAuthUI(isAuthenticated, status = null) {
+            const authStatus = document.getElementById('githubAuthStatus');
             const loginBtn = document.getElementById('githubLoginBtn');
             const logoutBtn = document.getElementById('githubLogoutBtn');
 
             if (isAuthenticated) {
-                authStatusDiv.innerHTML = '<i class="fas fa-check-circle"></i> Authenticated with GitHub';
-                authStatusDiv.className = 'auth-status'; // Reset classes
+                authStatus.innerHTML = `<i class="fas fa-check-circle"></i> GitHub Token ${status}`;
+                authStatus.style.color = '#28a745';
                 loginBtn.style.display = 'none';
-                logoutBtn.style.display = 'inline-block';
+                logoutBtn.style.display = 'none';
             } else {
-                authStatusDiv.innerHTML = '<i class="fas fa-question-circle"></i> Not Authenticated';
-                authStatusDiv.className = 'auth-status'; // Reset classes
-                loginBtn.style.display = 'inline-block';
+                authStatus.innerHTML = '<i class="fas fa-times-circle"></i> GitHub Token Not Configured';
+                authStatus.style.color = '#dc3545';
+                loginBtn.style.display = 'none';
                 logoutBtn.style.display = 'none';
             }
         }
 
-        function clearGitHubAuth() {
-            localStorage.removeItem('githubSessionId');
-            githubSessionId = null;
-            updateAuthStatus(false);
+        // Repository Loading Functions
+        async function loadRepositories() {
+            document.getElementById('repoSelectionDiv').innerHTML = '<div style="text-align: center;"><i class="fas fa-spinner fa-spin"></i> Loading repositories...</div>';
+
+            try {
+                const response = await fetch('/api/github/repos');
+                const data = await response.json();
+
+                const repoList = document.getElementById('repoList');
+                repoList.innerHTML = ''; // Clear previous options
+
+                if (data.success && data.repos.length > 0) {
+                    availableRepos = data.repos; // Store repositories globally
+                    repoList.innerHTML = '<option value="">Select a repository</option>';
+                    data.repos.forEach(repo => {
+                        const option = document.createElement('option');
+                        // Use clone_url for cloning, fallback to full_name for display/logic if needed
+                        option.value = repo.clone_url || `https://github.com/${repo.full_name}.git`;
+                        option.textContent = `${repo.full_name} - ${repo.description || 'No description'}`;
+                        option.dataset.repoName = repo.name; // Store repo name for potential use
+                        repoList.appendChild(option);
+                    });
+                    document.getElementById('repoSelectionDiv').innerHTML = ''; // Clear loading message
+                    document.getElementById('repoListGroup').style.display = 'block'; // Show the list
+                } else if (data.error === 'Unauthorized' || data.message === 'Bad credentials') {
+                    // Handle cases where token might be invalid or expired
+                    updateAuthUI(false);
+                    document.getElementById('repoSelectionDiv').innerHTML = '<p style="color: #ff6b6b;">GitHub token is invalid or expired. Please reconfigure.</p>';
+                }
+                 else if (data.repos && data.repos.length === 0) {
+                    document.getElementById('repoSelectionDiv').innerHTML = '<p>No repositories found. Ensure the GitHub token has access to your repositories.</p>';
+                }
+                 else {
+                    document.getElementById('repoSelectionDiv').innerHTML = '<p style="color: #ff6b6b;">Error loading repositories. Please check your GitHub token configuration.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading repositories:', error);
+                document.getElementById('repoSelectionDiv').innerHTML = '<p style="color: #ff6b6b;">Failed to load repositories. Check console for details.</p>';
+            }
         }
 
-        // Repository Loading Functions
         function toggleRepoInput() {
             const selection = document.getElementById('repoSelection').value;
             const repoUrlGroup = document.getElementById('repoUrlGroup');
@@ -539,45 +558,9 @@
             repoUrlGroup.style.display = selection === 'existing' ? 'block' : 'none';
             repoListGroup.style.display = selection === 'list' ? 'block' : 'none';
 
-            if (selection === 'list' && !githubSessionId) {
-                loadRepositories(); // This will show the login message if not authenticated
-            } else if (selection === 'list' && repositories.length === 0) {
+            // If 'list' is selected and repos are not loaded, attempt to load them
+            if (selection === 'list' && availableRepos.length === 0) {
                 loadRepositories();
-            }
-        }
-
-        async function loadRepositories() {
-            if (!githubSessionId) {
-                document.getElementById('repoList').innerHTML = '<option value="">Login with GitHub to see repositories</option>';
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/github/repos?session_id=${githubSessionId}`);
-                const data = await response.json();
-
-                const repoList = document.getElementById('repoList');
-                repoList.innerHTML = '';
-
-                if (data.success && data.repos.length > 0) {
-                    repositories = data.repos;
-                    repoList.innerHTML = '<option value="">Select a repository</option>';
-                    data.repos.forEach(repo => {
-                        const option = document.createElement('option');
-                        option.value = repo.clone_url || `https://github.com/${repo.full_name}.git`;
-                        option.textContent = `${repo.full_name} - ${repo.description || 'No description'}`;
-                        option.dataset.repoName = repo.name;
-                        repoList.appendChild(option);
-                    });
-                } else if (!data.authenticated) {
-                    clearGitHubAuth();
-                    repoList.innerHTML = '<option value="">GitHub authentication expired - please login again</option>';
-                } else {
-                    repoList.innerHTML = '<option value="">No repositories found or GitHub not connected</option>';
-                }
-            } catch (error) {
-                console.error('Error loading repositories:', error);
-                document.getElementById('repoList').innerHTML = '<option value="">Error loading repositories</option>';
             }
         }
 
@@ -586,30 +569,59 @@
             if (buildInProgress) return;
 
             const domain = document.getElementById('domain').value.trim();
-            const repoSelection = document.getElementById('repoSelection').value;
             const projectName = document.getElementById('projectName').value.trim();
+            const repoSelection = document.getElementById('repoSelection').value;
 
             if (!domain) {
                 alert('Please enter a domain name');
                 return;
             }
 
-            let repoUrl = '';
-            let repoName = '';
+            let requestBody = {
+                domain: domain,
+                sessionId: 'web-session' // This is now a placeholder as we don't use session IDs for auth
+            };
 
-            if (repoSelection === 'existing') {
-                repoUrl = document.getElementById('repoUrl').value.trim();
-                if (repoUrl) {
-                    repoName = repoUrl.split('/').pop().replace('.git', '');
-                }
-            } else if (repoSelection === 'list') {
-                const repoList = document.getElementById('repoList');
-                repoUrl = repoList.value;
-                if (repoUrl) {
-                    const selectedOption = repoList.options[repoList.selectedIndex];
-                    repoName = selectedOption.dataset.repoName || repoUrl.split('/').pop().replace('.git', '');
-                }
+            if (projectName) {
+                requestBody.projectName = projectName;
             }
+
+            if (repoSelection === 'new') {
+                // No specific repo details needed for creating a new project locally
+                requestBody.source = 'new';
+            } else if (repoSelection === 'existing') {
+                const repoUrl = document.getElementById('repoUrl').value.trim();
+                if (!repoUrl) {
+                    alert('Please enter a repository URL');
+                    return;
+                }
+                requestBody.repoUrl = repoUrl;
+                requestBody.source = 'existing';
+                // Attempt to extract repo name from URL
+                requestBody.repoName = repoUrl.split('/').pop().replace('.git', '');
+            } else if (repoSelection === 'list') {
+                const selectedRepoValue = document.getElementById('repoList').value;
+                if (!selectedRepoValue || selectedRepoValue === '') {
+                    alert('Please select a repository from the list');
+                    return;
+                }
+
+                // Find the selected repository from the availableRepos array
+                const selectedRepo = availableRepos.find(repo => repo.clone_url === selectedRepoValue || `https://github.com/${repo.full_name}.git` === selectedRepoValue);
+
+                if (selectedRepo) {
+                    requestBody.repoUrl = selectedRepo.clone_url || `https://github.com/${selectedRepo.full_name}.git`;
+                    requestBody.repoName = selectedRepo.name; // Use the repo's name directly
+                    requestBody.source = 'list';
+                } else {
+                    alert('Selected repository not found. Please refresh the list.');
+                    return;
+                }
+            } else {
+                alert('Invalid repository selection.');
+                return;
+            }
+
 
             buildInProgress = true;
             const createBtn = document.querySelector('.create-btn');
@@ -627,21 +639,6 @@
             try {
                 // Start the creation process
                 startStep('init');
-
-                const requestBody = {
-                    domain: domain,
-                    sessionId: githubSessionId, // Use the authenticated session ID
-                    source: repoSelection
-                };
-
-                if (repoUrl) {
-                    requestBody.repoUrl = repoUrl;
-                    requestBody.repoName = repoName;
-                }
-
-                if (projectName) {
-                    requestBody.projectName = projectName;
-                }
 
                 const response = await fetch('/api/create-react-native', {
                     method: 'POST',
@@ -814,8 +811,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             initializeGitHubAuth();
 
-            // Auto-load repositories if option is selected
+            // Set the default repo selection and toggle input visibility
             const repoSelection = document.getElementById('repoSelection');
+            toggleRepoInput(); // Call to set initial display states
+            
+            // If the default selection is 'list', attempt to load repositories
             if (repoSelection.value === 'list') {
                 loadRepositories();
             }

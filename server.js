@@ -842,7 +842,7 @@ app.post('/api/clear-conversation', (req, res) => {
 // Create React Native app endpoint
 app.post('/api/create-react-native', async (req, res) => {
   try {
-    const { domain, sessionId = 'default', repoUrl, repoName, projectName, createRepo = false } = req.body;
+    const { domain, sessionId = 'default', repoUrl, repoName, projectName, createRepo = false, selectedRepo } = req.body;
 
     if (!domain) {
       return res.status(400).json({
@@ -852,7 +852,7 @@ app.post('/api/create-react-native', async (req, res) => {
     }
 
     // Check GitHub token for repository operations
-    if ((repoUrl || createRepo) && !process.env.GITHUB_TOKEN) {
+    if ((repoUrl || createRepo || selectedRepo) && !process.env.GITHUB_TOKEN) {
       return res.status(400).json({
         success: false,
         error: 'GitHub token required for repository operations. Please configure GITHUB_TOKEN environment variable.'
@@ -862,7 +862,8 @@ app.post('/api/create-react-native', async (req, res) => {
     const ReactNativeBuilder = require('./react-native-builder');
     const builder = new ReactNativeBuilder(domain, projectName, {
       repoUrl,
-      repoName
+      repoName,
+      selectedRepo
     });
 
     console.log(`🚀 Starting React Native app creation for domain: ${domain}`);

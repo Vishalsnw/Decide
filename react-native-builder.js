@@ -10,11 +10,12 @@ class ReactNativeBuilder {
     this.projectName = projectName || domain.replace(/[^a-zA-Z0-9]/g, '');
     this.repoUrl = options.repoUrl;
     this.repoName = options.repoName;
-    this.useRepo = !!this.repoUrl;
+    this.selectedRepo = options.selectedRepo;
+    this.useRepo = !!(this.repoUrl || this.selectedRepo);
     this.needsRNInit = options.needsRNInit === undefined ? true : options.needsRNInit;
     this.isExistingRNProject = options.isExistingRNProject || false;
     
-    // Initialize GitHub client
+    // Initialize GitHub client with existing token
     this.octokit = process.env.GITHUB_TOKEN ? new Octokit({
       auth: process.env.GITHUB_TOKEN,
     }) : null;
@@ -115,7 +116,8 @@ class ReactNativeBuilder {
   }
 
   async cloneRepository() {
-    console.log(`🔗 Setting up repository: ${this.repoUrl || 'creating new'}`);
+    const repoToClone = this.selectedRepo || { clone_url: this.repoUrl, full_name: this.repoName };
+    console.log(`🔗 Setting up repository: ${repoToClone?.full_name || 'creating new'}`);
     
     // Ensure parent directory exists
     const parentDir = path.dirname(this.projectPath);
@@ -123,13 +125,19 @@ class ReactNativeBuilder {
       fs.mkdirSync(parentDir, { recursive: true });
     }
     
-    if (this.repoUrl) {
+    if (repoToClone && (repoToClone.clone_url || this.repoUrl)) {
       // Clone existing repository
       if (!fs.existsSync(this.projectPath)) {
         fs.mkdirSync(this.projectPath, { recursive: true });
       }
-      await this.executeCommand(`git clone ${this.repoUrl} .`, this.projectPath);
+      const cloneUrl = repoToClone.clone_url || this.repoUrl;
+      await this.executeCommand(`git clone ${cloneUrl} .`, this.projectPath);
       console.log('✅ Repository cloned successfully.');
+      
+      return {
+        repository: repoToClone,
+        repoUrl: cloneUrl
+      };
     } else if (this.octokit) {
       // Create new GitHub repository
       try {
