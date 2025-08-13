@@ -10,6 +10,8 @@ class ReactNativeBuilder {
     this.repoUrl = options.repoUrl;
     this.repoName = options.repoName;
     this.useRepo = !!this.repoUrl;
+    this.needsRNInit = options.needsRNInit === undefined ? true : options.needsRNInit; // Flag to indicate if RN init is needed
+    this.isExistingRNProject = options.isExistingRNProject || false; // Flag to check if the repo is already a RN project
 
     // If using repo, create in repo directory, otherwise use projects directory
     if (this.useRepo) {
@@ -27,20 +29,21 @@ class ReactNativeBuilder {
     console.log(`🚀 Creating React Native app for domain: ${this.domain}`);
 
     try {
-      // Clone repository if provided
+      // Handle repository operations
       if (this.useRepo) {
         await this.cloneRepository();
-      }
 
-      // Create project directory if not using repo
-      if (!this.useRepo) {
+        // Initialize React Native if needed
+        if (this.needsRNInit && !this.isExistingRNProject) {
+          console.log('🚀 Initializing React Native in cloned repository...');
+          await this.executeCommand(`npx react-native init ${this.projectName} --directory .`, this.projectPath);
+        }
+      } else {
+        // Create new local project
         if (!fs.existsSync(path.dirname(this.projectPath))) {
           fs.mkdirSync(path.dirname(this.projectPath), { recursive: true });
         }
-      }
-
-      // Initialize React Native project if not cloning from repo
-      if (!this.useRepo) {
+        console.log('🚀 Creating new React Native project...');
         await this.executeCommand('npx react-native init ' + this.projectName, path.dirname(this.projectPath));
       }
 
@@ -494,7 +497,7 @@ android.enableR8.fullMode=true
   async executeCommand(command, cwd) {
     return new Promise((resolve, reject) => {
       console.log(`Executing: ${command}`);
-      const process = spawn('sh', ['-c', command], { 
+      const process = spawn('sh', ['-c', command], {
         cwd: cwd,
         stdio: ['pipe', 'pipe', 'pipe']
       });

@@ -104,6 +104,36 @@
             cursor: not-allowed;
         }
 
+        select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .refresh-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .refresh-btn:hover {
+            background: #229954;
+        }
+
         .progress-section {
             display: none;
             background: #fff;
@@ -279,9 +309,27 @@
                     <input type="text" id="domain" placeholder="example.com" />
                 </div>
                 <div class="input-group">
-                    <label for="repoUrl">GitHub Repository (Optional):</label>
+                    <label for="repoSelection">Repository Source:</label>
+                    <select id="repoSelection" onchange="toggleRepoInput()">
+                        <option value="new">Create new project locally</option>
+                        <option value="existing">Connect to existing repository</option>
+                        <option value="list">Select from your repositories</option>
+                    </select>
+                </div>
+                
+                <div class="input-group" id="repoUrlGroup" style="display: none;">
+                    <label for="repoUrl">GitHub Repository URL:</label>
                     <input type="text" id="repoUrl" placeholder="https://github.com/username/repo.git" />
-                    <small>Leave empty to create a new project locally</small>
+                </div>
+                
+                <div class="input-group" id="repoListGroup" style="display: none;">
+                    <label for="repoList">Select Repository:</label>
+                    <select id="repoList">
+                        <option value="">Loading repositories...</option>
+                    </select>
+                    <button type="button" class="refresh-btn" onclick="loadRepositories()">
+                        <i class="fas fa-refresh"></i> Refresh
+                    </button>
                 </div>
                 <div class="input-group">
                     <label for="projectName">Project Name (Optional):</label>
@@ -368,17 +416,81 @@
 
     <script>
         let buildInProgress = false;
+        let repositories = [];
+
+        // Load repositories on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRepositories();
+        });
+
+        function toggleRepoInput() {
+            const selection = document.getElementById('repoSelection').value;
+            const repoUrlGroup = document.getElementById('repoUrlGroup');
+            const repoListGroup = document.getElementById('repoListGroup');
+            
+            repoUrlGroup.style.display = selection === 'existing' ? 'block' : 'none';
+            repoListGroup.style.display = selection === 'list' ? 'block' : 'none';
+            
+            if (selection === 'list' && repositories.length === 0) {
+                loadRepositories();
+            }
+        }
+
+        async function loadRepositories() {
+            try {
+                const repoList = document.getElementById('repoList');
+                repoList.innerHTML = '<option value="">Loading repositories...</option>';
+                
+                const response = await fetch('/api/github/repos');
+                const data = await response.json();
+                
+                if (data.success && data.repos.length > 0) {
+                    repositories = data.repos;
+                    repoList.innerHTML = '<option value="">Select a repository</option>';
+                    
+                    data.repos.forEach(repo => {
+                        const option = document.createElement('option');
+                        option.value = repo.clone_url || `https://github.com/${repo.full_name}.git`;
+                        option.textContent = `${repo.full_name} - ${repo.description || 'No description'}`;
+                        option.dataset.repoName = repo.name;
+                        repoList.appendChild(option);
+                    });
+                } else {
+                    repoList.innerHTML = '<option value="">No repositories found or GitHub not connected</option>';
+                }
+            } catch (error) {
+                console.error('Error loading repositories:', error);
+                document.getElementById('repoList').innerHTML = '<option value="">Error loading repositories</option>';
+            }
+        }
 
         async function createApp() {
             if (buildInProgress) return;
 
             const domain = document.getElementById('domain').value.trim();
-            const repoUrl = document.getElementById('repoUrl').value.trim();
+            const repoSelection = document.getElementById('repoSelection').value;
             const projectName = document.getElementById('projectName').value.trim();
             
             if (!domain) {
                 alert('Please enter a domain name');
                 return;
+            }
+
+            let repoUrl = '';
+            let repoName = '';
+
+            if (repoSelection === 'existing') {
+                repoUrl = document.getElementById('repoUrl').value.trim();
+                if (repoUrl) {
+                    repoName = repoUrl.split('/').pop().replace('.git', '');
+                }
+            } else if (repoSelection === 'list') {
+                const repoList = document.getElementById('repoList');
+                repoUrl = repoList.value;
+                if (repoUrl) {
+                    const selectedOption = repoList.options[repoList.selectedIndex];
+                    repoName = selectedOption.dataset.repoName || repoUrl.split('/').pop().replace('.git', '');
+                }
             }
 
             buildInProgress = true;

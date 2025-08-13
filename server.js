@@ -234,9 +234,13 @@ app.get('/api/github/repos', async (req, res) => {
       description: repo.description,
       private: repo.private,
       html_url: repo.html_url,
+      clone_url: repo.clone_url,
+      ssh_url: repo.ssh_url,
       updated_at: repo.updated_at,
       language: repo.language,
-      stars: repo.stargazers_count
+      stars: repo.stargazers_count,
+      size: repo.size,
+      default_branch: repo.default_branch
     }));
 
     res.json({
