@@ -26,14 +26,14 @@ class ReactNativeBuilder {
     // Use safe directory paths - avoid /var/task and other restricted paths
     const safeProjectName = (this.repoName || this.projectName).replace(/[^a-zA-Z0-9-_]/g, '');
     let baseDir = process.cwd();
-    
+
     // Avoid restricted paths in serverless environments
     if (process.cwd().includes('/var/task') || process.cwd().includes('/tmp')) {
       baseDir = '/tmp';
     } else if (process.env.REPL_HOME && !process.env.REPL_HOME.includes('/var/task')) {
       baseDir = process.env.REPL_HOME;
     }
-    
+
     if (this.useRepo) {
       this.projectPath = path.join(baseDir, 'temp_repos', safeProjectName);
     } else {
@@ -90,7 +90,7 @@ class ReactNativeBuilder {
             path.join(process.cwd(), this.projectName),
             path.join(__dirname, this.projectName)
           ];
-          
+
           for (const fallbackPath of fallbackPaths) {
             try {
               const fallbackParent = path.dirname(fallbackPath);
@@ -170,7 +170,7 @@ class ReactNativeBuilder {
         path.join(process.cwd(), `rn_${Date.now()}_${this.projectName}`),
         path.join(__dirname, `rn_${Date.now()}_${this.projectName}`)
       ];
-      
+
       for (const fallbackPath of fallbackPaths) {
         try {
           const fallbackParent = path.dirname(fallbackPath);
@@ -187,14 +187,20 @@ class ReactNativeBuilder {
       }
     }
 
+    const hasGit = await this.checkGitAvailability();
+
     if (repoToClone && (repoToClone.clone_url || this.repoUrl)) {
       // Clone existing repository
       if (!fs.existsSync(this.projectPath)) {
         fs.mkdirSync(this.projectPath, { recursive: true });
       }
       const cloneUrl = repoToClone.clone_url || this.repoUrl;
-      await this.executeCommand(`git clone ${cloneUrl} .`, this.projectPath);
-      console.log('✅ Repository cloned successfully.');
+      if (hasGit) {
+        await this.executeCommand(`git clone ${cloneUrl} .`, this.projectPath);
+        console.log('✅ Repository cloned successfully.');
+      } else {
+        console.log('⚠️ Git not available - cannot clone repository. Proceeding without version control.');
+      }
 
       return {
         repository: repoToClone,
@@ -219,7 +225,11 @@ class ReactNativeBuilder {
         if (!fs.existsSync(this.projectPath)) {
           fs.mkdirSync(this.projectPath, { recursive: true });
         }
-        await this.executeCommand(`git clone ${this.repoUrl} .`, this.projectPath);
+        if (hasGit) {
+          await this.executeCommand(`git clone ${this.repoUrl} .`, this.projectPath);
+        } else {
+          console.log('⚠️ Git not available - cannot clone repository. Proceeding without version control.');
+        }
 
         return {
           repository: repo,
@@ -231,7 +241,9 @@ class ReactNativeBuilder {
         if (!fs.existsSync(this.projectPath)) {
           fs.mkdirSync(this.projectPath, { recursive: true });
         }
-        await this.executeCommand('git init', this.projectPath);
+        if (hasGit) {
+          await this.executeCommand('git init', this.projectPath);
+        }
       }
     } else {
       // Local development without GitHub
@@ -239,7 +251,11 @@ class ReactNativeBuilder {
       if (!fs.existsSync(this.projectPath)) {
         fs.mkdirSync(this.projectPath, { recursive: true });
       }
-      await this.executeCommand('git init', this.projectPath);
+      if (hasGit) {
+        await this.executeCommand('git init', this.projectPath);
+      } else {
+        console.log('⚠️ Git not available - proceeding without version control');
+      }
     }
   }
 
@@ -711,6 +727,16 @@ android.enableR8.fullMode=true
         }
       });
     });
+  }
+
+  async checkGitAvailability() {
+    try {
+      await this.executeCommand('git --version', process.cwd());
+      return true;
+    } catch (error) {
+      console.log('⚠️ Git command not found. Proceeding without version control.');
+      return false;
+    }
   }
 }
 
