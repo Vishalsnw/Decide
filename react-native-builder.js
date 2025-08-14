@@ -739,7 +739,7 @@ android.enableR8.fullMode=true
         npm_config_tmp: '/tmp'
       };
       
-      const process = spawn('sh', ['-c', command], {
+      const childProcess = spawn('sh', ['-c', command], {
         cwd: cwd,
         stdio: ['pipe', 'pipe', 'pipe'],
         env: env
@@ -748,17 +748,17 @@ android.enableR8.fullMode=true
       let stdout = '';
       let stderr = '';
 
-      process.stdout.on('data', (data) => {
+      childProcess.stdout.on('data', (data) => {
         stdout += data.toString();
         console.log(data.toString().trim());
       });
 
-      process.stderr.on('data', (data) => {
+      childProcess.stderr.on('data', (data) => {
         stderr += data.toString();
         console.error(data.toString().trim());
       });
 
-      process.on('close', (code) => {
+      childProcess.on('close', (code) => {
         if (code === 0) {
           resolve(stdout);
         } else {
