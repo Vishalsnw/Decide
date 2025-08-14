@@ -108,20 +108,36 @@ class ReactNativeBuilder {
         }
         console.log('🚀 Creating new React Native project...');
         
-        // Create npm directories first
-        const npmCacheDir = path.join(process.env.REPL_HOME || process.cwd(), '.npm-cache');
-        const npmGlobalDir = path.join(process.env.REPL_HOME || process.cwd(), '.npm-global');
+        // Create npm directories first with proper permissions
+        const baseDir = process.env.REPL_HOME || process.cwd();
+        const npmCacheDir = path.join(baseDir, '.npm-cache');
+        const npmGlobalDir = path.join(baseDir, '.npm-global');
+        const npmTmpDir = path.join(baseDir, '.npm-tmp');
         
-        if (!fs.existsSync(npmCacheDir)) {
-          fs.mkdirSync(npmCacheDir, { recursive: true });
-        }
-        if (!fs.existsSync(npmGlobalDir)) {
-          fs.mkdirSync(npmGlobalDir, { recursive: true });
+        // Ensure all npm directories exist
+        [npmCacheDir, npmGlobalDir, npmTmpDir].forEach(dir => {
+          if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+          }
+        });
+        
+        // Set comprehensive npm config before any npm operations
+        const npmConfigCommands = [
+          `npm config set cache "${npmCacheDir}"`,
+          `npm config set prefix "${npmGlobalDir}"`,
+          `npm config set tmp "${npmTmpDir}"`,
+          `npm config set registry "https://registry.npmjs.org/"`,
+          `npm config set fetch-retries 3`,
+          `npm config set fetch-retry-factor 10`,
+          `npm config set fetch-retry-mintimeout 10000`,
+          `npm config set fetch-retry-maxtimeout 60000`
+        ];
+        
+        for (const configCmd of npmConfigCommands) {
+          await this.executeCommand(configCmd, path.dirname(this.projectPath));
         }
         
-        // Set npm config and create project
-        await this.executeCommand('npm config set cache ' + npmCacheDir, path.dirname(this.projectPath));
-        await this.executeCommand('npm config set prefix ' + npmGlobalDir, path.dirname(this.projectPath));
+        // Create project with better error handling
         await this.executeCommand('npx --yes react-native@latest init ' + this.projectName, path.dirname(this.projectPath));
       }
 
@@ -557,21 +573,34 @@ android.enableR8.fullMode=true
   async installDependencies() {
     console.log('📦 Installing dependencies...');
 
-    // Create npm cache directories
-    const npmCacheDir = path.join(process.env.REPL_HOME || process.cwd(), '.npm-cache');
-    const npmGlobalDir = path.join(process.env.REPL_HOME || process.cwd(), '.npm-global');
+    // Ensure npm directories exist with proper permissions
+    const baseDir = process.env.REPL_HOME || process.cwd();
+    const npmCacheDir = path.join(baseDir, '.npm-cache');
+    const npmGlobalDir = path.join(baseDir, '.npm-global');
+    const npmTmpDir = path.join(baseDir, '.npm-tmp');
     
-    if (!fs.existsSync(npmCacheDir)) {
-      fs.mkdirSync(npmCacheDir, { recursive: true });
-    }
-    if (!fs.existsSync(npmGlobalDir)) {
-      fs.mkdirSync(npmGlobalDir, { recursive: true });
-    }
+    [npmCacheDir, npmGlobalDir, npmTmpDir].forEach(dir => {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
+      }
+    });
 
-    // Install React Native dependencies with proper npm config
-    await this.executeCommand('npm config set cache ' + npmCacheDir, this.projectPath);
-    await this.executeCommand('npm config set prefix ' + npmGlobalDir, this.projectPath);
-    await this.executeCommand('npm install', this.projectPath);
+    // Set comprehensive npm configuration
+    const npmConfigCommands = [
+      `npm config set cache "${npmCacheDir}"`,
+      `npm config set prefix "${npmGlobalDir}"`,
+      `npm config set tmp "${npmTmpDir}"`,
+      `npm config set registry "https://registry.npmjs.org/"`,
+      `npm config set fetch-retries 5`,
+      `npm config set fetch-retry-factor 10`
+    ];
+    
+    for (const configCmd of npmConfigCommands) {
+      await this.executeCommand(configCmd, this.projectPath);
+    }
+    
+    // Install dependencies with better error handling
+    await this.executeCommand('npm install --no-audit --no-fund', this.projectPath);
 
     // Install additional packages for domain integration
     const additionalPackages = [
@@ -731,12 +760,19 @@ android.enableR8.fullMode=true
       console.log(`Executing: ${command}`);
       
       // Set proper environment variables for npm in Replit
+      const baseDir = process.env.REPL_HOME || process.cwd();
       const env = {
         ...process.env,
-        HOME: process.env.REPL_HOME || process.cwd(),
-        npm_config_cache: path.join(process.env.REPL_HOME || process.cwd(), '.npm-cache'),
-        npm_config_prefix: path.join(process.env.REPL_HOME || process.cwd(), '.npm-global'),
-        npm_config_tmp: '/tmp'
+        HOME: baseDir,
+        TMPDIR: path.join(baseDir, '.npm-tmp'),
+        npm_config_cache: path.join(baseDir, '.npm-cache'),
+        npm_config_prefix: path.join(baseDir, '.npm-global'),
+        npm_config_tmp: path.join(baseDir, '.npm-tmp'),
+        npm_config_registry: 'https://registry.npmjs.org/',
+        npm_config_fetch_retries: '5',
+        npm_config_fetch_retry_factor: '10',
+        npm_config_fetch_retry_mintimeout: '10000',
+        npm_config_fetch_retry_maxtimeout: '60000'
       };
       
       const childProcess = spawn('sh', ['-c', command], {
