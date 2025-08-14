@@ -107,7 +107,22 @@ class ReactNativeBuilder {
           }
         }
         console.log('🚀 Creating new React Native project...');
-        await this.executeCommand('npx react-native init ' + this.projectName, path.dirname(this.projectPath));
+        
+        // Create npm directories first
+        const npmCacheDir = path.join(process.env.REPL_HOME || process.cwd(), '.npm-cache');
+        const npmGlobalDir = path.join(process.env.REPL_HOME || process.cwd(), '.npm-global');
+        
+        if (!fs.existsSync(npmCacheDir)) {
+          fs.mkdirSync(npmCacheDir, { recursive: true });
+        }
+        if (!fs.existsSync(npmGlobalDir)) {
+          fs.mkdirSync(npmGlobalDir, { recursive: true });
+        }
+        
+        // Set npm config and create project
+        await this.executeCommand('npm config set cache ' + npmCacheDir, path.dirname(this.projectPath));
+        await this.executeCommand('npm config set prefix ' + npmGlobalDir, path.dirname(this.projectPath));
+        await this.executeCommand('npx --yes react-native@latest init ' + this.projectName, path.dirname(this.projectPath));
       }
 
       // Configure domain integration
@@ -542,7 +557,20 @@ android.enableR8.fullMode=true
   async installDependencies() {
     console.log('📦 Installing dependencies...');
 
-    // Install React Native dependencies
+    // Create npm cache directories
+    const npmCacheDir = path.join(process.env.REPL_HOME || process.cwd(), '.npm-cache');
+    const npmGlobalDir = path.join(process.env.REPL_HOME || process.cwd(), '.npm-global');
+    
+    if (!fs.existsSync(npmCacheDir)) {
+      fs.mkdirSync(npmCacheDir, { recursive: true });
+    }
+    if (!fs.existsSync(npmGlobalDir)) {
+      fs.mkdirSync(npmGlobalDir, { recursive: true });
+    }
+
+    // Install React Native dependencies with proper npm config
+    await this.executeCommand('npm config set cache ' + npmCacheDir, this.projectPath);
+    await this.executeCommand('npm config set prefix ' + npmGlobalDir, this.projectPath);
     await this.executeCommand('npm install', this.projectPath);
 
     // Install additional packages for domain integration
@@ -701,9 +729,20 @@ android.enableR8.fullMode=true
   async executeCommand(command, cwd) {
     return new Promise((resolve, reject) => {
       console.log(`Executing: ${command}`);
+      
+      // Set proper environment variables for npm in Replit
+      const env = {
+        ...process.env,
+        HOME: process.env.REPL_HOME || process.cwd(),
+        npm_config_cache: path.join(process.env.REPL_HOME || process.cwd(), '.npm-cache'),
+        npm_config_prefix: path.join(process.env.REPL_HOME || process.cwd(), '.npm-global'),
+        npm_config_tmp: '/tmp'
+      };
+      
       const process = spawn('sh', ['-c', command], {
         cwd: cwd,
-        stdio: ['pipe', 'pipe', 'pipe']
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: env
       });
 
       let stdout = '';
