@@ -23,21 +23,15 @@ class ReactNativeBuilder {
       auth: process.env.GITHUB_TOKEN,
     });
 
-    // Use safe directory paths - avoid /var/task and other restricted paths
+    // Use safe directory paths - always work in current directory for Git repos
     const safeProjectName = (this.repoName || this.projectName).replace(/[^a-zA-Z0-9-_]/g, '');
-    let baseDir = process.cwd();
-
-    // Avoid restricted paths in serverless environments
-    if (process.cwd().includes('/var/task') || process.cwd().includes('/tmp')) {
-      baseDir = '/tmp';
-    } else if (process.env.REPL_HOME && !process.env.REPL_HOME.includes('/var/task')) {
-      baseDir = process.env.REPL_HOME;
-    }
-
+    
+    // For Git repositories, work directly in current directory to maintain Git context
     if (this.useRepo) {
-      this.projectPath = path.join(baseDir, 'temp_repos', safeProjectName);
+      this.projectPath = process.cwd(); // Work directly in current Repl directory
     } else {
-      this.projectPath = path.join(baseDir, 'temp_projects', safeProjectName);
+      // For local projects, use a subdirectory
+      this.projectPath = path.join(process.cwd(), safeProjectName);
     }
 
     this.buildAttempts = 0;
@@ -108,13 +102,13 @@ class ReactNativeBuilder {
         }
         console.log('🚀 Creating new React Native project...');
         
-        // Create npm directories first with proper permissions
-        const baseDir = process.env.REPL_HOME || process.cwd();
-        const npmCacheDir = path.join(baseDir, '.npm-cache');
-        const npmGlobalDir = path.join(baseDir, '.npm-global');
-        const npmTmpDir = path.join(baseDir, '.npm-tmp');
+        // Create npm directories in current working directory to avoid /var/task issues
+        const workingDir = process.cwd();
+        const npmCacheDir = path.join(workingDir, '.npm-cache');
+        const npmGlobalDir = path.join(workingDir, '.npm-global');
+        const npmTmpDir = path.join(workingDir, '.npm-tmp');
         
-        // Ensure all npm directories exist
+        // Ensure all npm directories exist with proper permissions
         [npmCacheDir, npmGlobalDir, npmTmpDir].forEach(dir => {
           if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true, mode: 0o755 });
@@ -130,15 +124,16 @@ class ReactNativeBuilder {
           `npm config set fetch-retries 3`,
           `npm config set fetch-retry-factor 10`,
           `npm config set fetch-retry-mintimeout 10000`,
-          `npm config set fetch-retry-maxtimeout 60000`
+          `npm config set fetch-retry-maxtimeout 60000`,
+          `npm config set unsafe-perm true`
         ];
         
         for (const configCmd of npmConfigCommands) {
-          await this.executeCommand(configCmd, path.dirname(this.projectPath));
+          await this.executeCommand(configCmd, this.projectPath);
         }
         
-        // Create project with better error handling
-        await this.executeCommand('npx --yes react-native@latest init ' + this.projectName, path.dirname(this.projectPath));
+        // Create React Native project directly in current directory
+        await this.executeCommand(`npx --yes react-native@latest init ${this.projectName} --directory .`, this.projectPath);
       }
 
       // Configure domain integration
@@ -185,57 +180,32 @@ class ReactNativeBuilder {
 
   async cloneRepository() {
     const repoToClone = this.selectedRepo || { clone_url: this.repoUrl, full_name: this.repoName };
-    console.log(`🔗 Setting up repository: ${repoToClone?.full_name || 'creating new'}`);
-
-    // Ensure parent directory exists with proper error handling
-    const parentDir = path.dirname(this.projectPath);
-    try {
-      if (!fs.existsSync(parentDir)) {
-        fs.mkdirSync(parentDir, { recursive: true });
-      }
-    } catch (error) {
-      console.error('Directory creation error:', error);
-      // Multiple fallback strategies
-      const fallbackPaths = [
-        path.join('/tmp', `rn_${Date.now()}_${this.projectName}`),
-        path.join(process.cwd(), `rn_${Date.now()}_${this.projectName}`),
-        path.join(__dirname, `rn_${Date.now()}_${this.projectName}`)
-      ];
-
-      for (const fallbackPath of fallbackPaths) {
-        try {
-          const fallbackParent = path.dirname(fallbackPath);
-          if (!fs.existsSync(fallbackParent)) {
-            fs.mkdirSync(fallbackParent, { recursive: true });
-          }
-          this.projectPath = fallbackPath;
-          console.log(`Using fallback path: ${this.projectPath}`);
-          break;
-        } catch (fallbackError) {
-          console.error(`Fallback path ${fallbackPath} also failed:`, fallbackError);
-          continue;
-        }
-      }
-    }
+    console.log(`🔗 Working with repository in current directory: ${process.cwd()}`);
 
     const hasGit = await this.checkGitAvailability();
 
+    // Check if we're already in a Git repository
+    const isGitRepo = fs.existsSync(path.join(process.cwd(), '.git'));
+    
+    if (isGitRepo) {
+      console.log('✅ Already in a Git repository - using current directory');
+      return {
+        repository: { full_name: 'current-repo', clone_url: 'current' },
+        repoUrl: 'current'
+      };
+    }
+
     if (repoToClone && (repoToClone.clone_url || this.repoUrl)) {
-      // Clone existing repository
-      if (!fs.existsSync(this.projectPath)) {
-        fs.mkdirSync(this.projectPath, { recursive: true });
-      }
-      const cloneUrl = repoToClone.clone_url || this.repoUrl;
+      console.log(`⚠️ Repository specified but working in current directory. Initializing Git...`);
       if (hasGit) {
-        await this.executeCommand(`git clone ${cloneUrl} .`, this.projectPath);
-        console.log('✅ Repository cloned successfully.');
-      } else {
-        console.log('⚠️ Git not available - cannot clone repository. Proceeding without version control.');
+        await this.executeCommand('git init', this.projectPath);
+        await this.executeCommand(`git remote add origin ${repoToClone.clone_url || this.repoUrl}`, this.projectPath);
+        console.log('✅ Git repository initialized with remote origin.');
       }
 
       return {
         repository: repoToClone,
-        repoUrl: cloneUrl
+        repoUrl: repoToClone.clone_url || this.repoUrl
       };
     } else if (this.octokit) {
       // Create new GitHub repository
@@ -246,20 +216,16 @@ class ReactNativeBuilder {
           name: this.projectName,
           description: `React Native app for ${this.domain}`,
           private: false,
-          auto_init: true
+          auto_init: false // Don't auto-init to avoid conflicts
         });
 
         this.repoUrl = repo.clone_url;
         console.log(`✅ Created repository: ${repo.html_url}`);
 
-        // Clone the new repository
-        if (!fs.existsSync(this.projectPath)) {
-          fs.mkdirSync(this.projectPath, { recursive: true });
-        }
+        // Initialize Git and connect to remote
         if (hasGit) {
-          await this.executeCommand(`git clone ${this.repoUrl} .`, this.projectPath);
-        } else {
-          console.log('⚠️ Git not available - cannot clone repository. Proceeding without version control.');
+          await this.executeCommand('git init', this.projectPath);
+          await this.executeCommand(`git remote add origin ${this.repoUrl}`, this.projectPath);
         }
 
         return {
@@ -268,26 +234,22 @@ class ReactNativeBuilder {
         };
       } catch (error) {
         console.log(`⚠️ Could not create GitHub repo: ${error.message}`);
-        // Continue with local development
-        if (!fs.existsSync(this.projectPath)) {
-          fs.mkdirSync(this.projectPath, { recursive: true });
-        }
+        // Initialize local Git
         if (hasGit) {
           await this.executeCommand('git init', this.projectPath);
         }
       }
     } else {
-      // Local development without GitHub
-      console.log('📁 Setting up local project directory');
-      if (!fs.existsSync(this.projectPath)) {
-        fs.mkdirSync(this.projectPath, { recursive: true });
-      }
+      // Local development with Git
+      console.log('📁 Initializing Git repository in current directory');
       if (hasGit) {
         await this.executeCommand('git init', this.projectPath);
       } else {
         console.log('⚠️ Git not available - proceeding without version control');
       }
     }
+
+    return null;
   }
 
   async configureDomain() {
@@ -573,11 +535,11 @@ android.enableR8.fullMode=true
   async installDependencies() {
     console.log('📦 Installing dependencies...');
 
-    // Ensure npm directories exist with proper permissions
-    const baseDir = process.env.REPL_HOME || process.cwd();
-    const npmCacheDir = path.join(baseDir, '.npm-cache');
-    const npmGlobalDir = path.join(baseDir, '.npm-global');
-    const npmTmpDir = path.join(baseDir, '.npm-tmp');
+    // Use current working directory for npm directories
+    const workingDir = process.cwd();
+    const npmCacheDir = path.join(workingDir, '.npm-cache');
+    const npmGlobalDir = path.join(workingDir, '.npm-global');
+    const npmTmpDir = path.join(workingDir, '.npm-tmp');
     
     [npmCacheDir, npmGlobalDir, npmTmpDir].forEach(dir => {
       if (!fs.existsSync(dir)) {
@@ -592,7 +554,8 @@ android.enableR8.fullMode=true
       `npm config set tmp "${npmTmpDir}"`,
       `npm config set registry "https://registry.npmjs.org/"`,
       `npm config set fetch-retries 5`,
-      `npm config set fetch-retry-factor 10`
+      `npm config set fetch-retry-factor 10`,
+      `npm config set unsafe-perm true`
     ];
     
     for (const configCmd of npmConfigCommands) {
@@ -760,19 +723,20 @@ android.enableR8.fullMode=true
       console.log(`Executing: ${command}`);
       
       // Set proper environment variables for npm in Replit
-      const baseDir = process.env.REPL_HOME || process.cwd();
+      const workingDir = process.cwd();
       const env = {
         ...process.env,
-        HOME: baseDir,
-        TMPDIR: path.join(baseDir, '.npm-tmp'),
-        npm_config_cache: path.join(baseDir, '.npm-cache'),
-        npm_config_prefix: path.join(baseDir, '.npm-global'),
-        npm_config_tmp: path.join(baseDir, '.npm-tmp'),
+        HOME: workingDir,
+        TMPDIR: path.join(workingDir, '.npm-tmp'),
+        npm_config_cache: path.join(workingDir, '.npm-cache'),
+        npm_config_prefix: path.join(workingDir, '.npm-global'),
+        npm_config_tmp: path.join(workingDir, '.npm-tmp'),
         npm_config_registry: 'https://registry.npmjs.org/',
         npm_config_fetch_retries: '5',
         npm_config_fetch_retry_factor: '10',
         npm_config_fetch_retry_mintimeout: '10000',
-        npm_config_fetch_retry_maxtimeout: '60000'
+        npm_config_fetch_retry_maxtimeout: '60000',
+        npm_config_unsafe_perm: 'true'
       };
       
       const childProcess = spawn('sh', ['-c', command], {
