@@ -23,9 +23,17 @@ class ReactNativeBuilder {
       auth: process.env.GITHUB_TOKEN,
     });
 
-    // Use safe directory paths - avoid /var/task
+    // Use safe directory paths - avoid /var/task and other restricted paths
     const safeProjectName = (this.repoName || this.projectName).replace(/[^a-zA-Z0-9-_]/g, '');
-    const baseDir = process.env.REPL_HOME || process.cwd();
+    let baseDir = process.cwd();
+    
+    // Avoid restricted paths in serverless environments
+    if (process.cwd().includes('/var/task') || process.cwd().includes('/tmp')) {
+      baseDir = '/tmp';
+    } else if (process.env.REPL_HOME && !process.env.REPL_HOME.includes('/var/task')) {
+      baseDir = process.env.REPL_HOME;
+    }
+    
     if (this.useRepo) {
       this.projectPath = path.join(baseDir, 'temp_repos', safeProjectName);
     } else {
@@ -76,9 +84,27 @@ class ReactNativeBuilder {
           }
         } catch (error) {
           console.error('Directory creation error:', error);
-          // Use current directory as fallback
-          this.projectPath = path.join(process.cwd(), this.projectName);
-          console.log(`Using fallback path: ${this.projectPath}`);
+          // Multiple fallback strategies for local projects
+          const fallbackPaths = [
+            path.join('/tmp', this.projectName),
+            path.join(process.cwd(), this.projectName),
+            path.join(__dirname, this.projectName)
+          ];
+          
+          for (const fallbackPath of fallbackPaths) {
+            try {
+              const fallbackParent = path.dirname(fallbackPath);
+              if (!fs.existsSync(fallbackParent)) {
+                fs.mkdirSync(fallbackParent, { recursive: true });
+              }
+              this.projectPath = fallbackPath;
+              console.log(`Using fallback path: ${this.projectPath}`);
+              break;
+            } catch (fallbackError) {
+              console.error(`Fallback path ${fallbackPath} also failed:`, fallbackError);
+              continue;
+            }
+          }
         }
         console.log('🚀 Creating new React Native project...');
         await this.executeCommand('npx react-native init ' + this.projectName, path.dirname(this.projectPath));
@@ -138,9 +164,27 @@ class ReactNativeBuilder {
       }
     } catch (error) {
       console.error('Directory creation error:', error);
-      // Fallback to current directory
-      this.projectPath = path.join(process.cwd(), `rn_${Date.now()}_${this.projectName}`);
-      console.log(`Using fallback path: ${this.projectPath}`);
+      // Multiple fallback strategies
+      const fallbackPaths = [
+        path.join('/tmp', `rn_${Date.now()}_${this.projectName}`),
+        path.join(process.cwd(), `rn_${Date.now()}_${this.projectName}`),
+        path.join(__dirname, `rn_${Date.now()}_${this.projectName}`)
+      ];
+      
+      for (const fallbackPath of fallbackPaths) {
+        try {
+          const fallbackParent = path.dirname(fallbackPath);
+          if (!fs.existsSync(fallbackParent)) {
+            fs.mkdirSync(fallbackParent, { recursive: true });
+          }
+          this.projectPath = fallbackPath;
+          console.log(`Using fallback path: ${this.projectPath}`);
+          break;
+        } catch (fallbackError) {
+          console.error(`Fallback path ${fallbackPath} also failed:`, fallbackError);
+          continue;
+        }
+      }
     }
 
     if (repoToClone && (repoToClone.clone_url || this.repoUrl)) {
