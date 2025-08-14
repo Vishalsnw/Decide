@@ -72,8 +72,8 @@ class ReactNativeBuilder {
         buildOutputs = this.completedBuilds || [];
       }
 
-      // Commit changes to repository if using Git
-      if (this.repoUrl || repositoryInfo) {
+      // Commit changes to repository if using Git and Git is available
+      if ((this.repoUrl || repositoryInfo) && repositoryInfo.repoUrl !== 'local') {
         try {
           await this.commitChanges();
         } catch (commitError) {
@@ -100,7 +100,11 @@ class ReactNativeBuilder {
 
     const hasGit = await this.checkGitAvailability();
     if (!hasGit) {
-      throw new Error('Git is required but not available');
+      console.log('⚠️ Git not available, proceeding without version control');
+      return {
+        repository: { full_name: 'local-repo', clone_url: 'local' },
+        repoUrl: 'local'
+      };
     }
 
     // Check if we're already in a Git repository
@@ -812,10 +816,16 @@ echo "Build completed! APK available in android/app/build/outputs/apk/release/"
   async commitChanges() {
     console.log('📝 Committing changes to repository...');
 
+    const hasGit = await this.checkGitAvailability();
+    if (!hasGit) {
+      console.log('⚠️ Git not available, skipping commit');
+      return;
+    }
+
     try {
       // Configure git user if not already set
-      await this.executeCommand('git config user.email "replit@example.com" || true', this.projectPath);
-      await this.executeCommand('git config user.name "Replit AI Assistant" || true', this.projectPath);
+      await this.executeCommand('git config user.email "builder@example.com" || true', this.projectPath);
+      await this.executeCommand('git config user.name "React Native Builder" || true', this.projectPath);
 
       // Add all files
       await this.executeCommand('git add .', this.projectPath);
@@ -996,7 +1006,7 @@ The APK will be generated in \`android/app/build/outputs/apk/release/\`
 
   async checkGitAvailability() {
     try {
-      await this.executeCommand('git --version', process.cwd());
+      await this.executeCommand('which git || command -v git', process.cwd());
       return true;
     } catch (error) {
       console.log('⚠️ Git command not found. Proceeding without version control.');
